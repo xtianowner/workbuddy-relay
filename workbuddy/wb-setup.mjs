@@ -62,7 +62,7 @@ async function chooseKey(keys) {
   if (ans === 'n') return 'new';
   return keys[(Number(ans) || 1) - 1]?.id ?? keys[0].id;
 }
-import { suggestEffort, probeReasoning, reasoningFields, EFFORTS, EFFORT_LABEL } from './lib/wb-reasoning.mjs';
+import { suggestEffort, probeReasoning, reasoningFields, probeLevels, nearestLevel, EFFORTS, EFFORT_LABEL } from './lib/wb-reasoning.mjs';
 import { startWebServer } from './lib/wb-web.mjs';
 import { detect, launch, focus, openBrowser, installMacDmg, installWinExe } from './lib/wb-platform.mjs';
 
@@ -262,8 +262,10 @@ async function main() {
     const e = effortArg === 'auto' ? 'medium' : effortArg; // auto：每个模型都实测
     if (e === 'off') { reasoning[m] = { effort: 'off' }; return; }
     if (args.noProbe || args.dryRun) { reasoning[m] = effortArg === 'auto' ? { effort: suggestEffort(m), format: 'openai' } : { effort: e, format: 'openai' }; return; }
-    const t = await probeReasoning(base, key, m, e);
-    if (t.ok) reasoning[m] = { effort: e, format: t.format };
+    const lv = await probeLevels(base, key, m);
+    const use = lv.levels ? nearestLevel(e, lv.levels) : e;
+    const t = await probeReasoning(base, key, m, use);
+    if (t.ok) reasoning[m] = { effort: use, format: t.format, ...(t.format === 'openai' && lv.levels ? { levels: lv.levels, canDisable: lv.canDisable } : {}) };
     else { reasoning[m] = { effort: 'off' }; warn(`${m} 经此中转站不支持思考强度（${t.reason}），按不带思考强度导入`); }
   });
   info('思考强度', picked.map((m) => `${m}=${EFFORT_LABEL[reasoning[m].effort]}`).join(', '));
@@ -277,7 +279,7 @@ async function main() {
   const prefix = args.namePrefix || '';
   const owner = args.owner === undefined ? 'wb-setup-v1' : args.owner;
   const incoming = picked.map((id) => {
-    const r = reasoning[id]; const rf = reasoningFields(r.effort, r.format);
+    const r = reasoning[id]; const rf = reasoningFields(r.effort, r.format, r.levels, r.canDisable);
     return buildEntry(id, base, key, { vendor, prefix, owner, extra: r.effort === 'off' ? { ...rf, reasoning: undefined, compat: undefined } : { ...rf, compat: rf.compat } });
   });
 

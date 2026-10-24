@@ -138,7 +138,7 @@ footer{color:var(--m);font-size:12px;text-align:center;padding:12px 0 32px}
 </main>
 <script>
 const T='__WB_TOKEN__';const $=(id)=>document.getElementById(id);let EFF=[],mode='pat',keyChoice=null,models=[];
-const LBL={auto:'自动',off:'关闭',low:'低',medium:'中',high:'高'};
+const LBL={auto:'自动',off:'关闭',minimal:'最低',low:'低',medium:'中',high:'高',xhigh:'超高',max:'极致'};
 async function api(p,b){const r=await fetch(p,{method:b?'POST':'GET',headers:{'X-WB-Token':T,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({error:'本地服务已关闭'}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
 function msg(id,t,c){const e=$(id);e.className='msg '+(c||'');e.textContent=t||''}
 function busy(btn,on,txt){if(on){btn.dataset.t=btn.textContent;btn.innerHTML='<span class="spin"></span>'+(txt||'处理中…');btn.disabled=true}else{btn.textContent=btn.dataset.t||btn.textContent;btn.disabled=false}}
@@ -171,7 +171,7 @@ $('b4').onclick=async()=>{const pick=models.filter(m=>m.checked).map(m=>({id:m.i
   const b=$('b4');busy(b,1,'正在检测并导入（'+pick.length+' 个模型）…');$('m4').textContent='';$('res').innerHTML='<div class="prog">正在逐个检测模型能否使用、思考强度是否生效，模型多时需要几十秒，请不要关闭页面…</div>';
   try{const r=await api('/api/import',{models:pick});renderResult(r)}catch(e){$('res').innerHTML='<p class="msg err"></p>';$('res').firstChild.textContent='导入失败：'+e.message;busy(b,0)}};
 function renderResult(r){const rows=r.rows.map(x=>{const st=!x.usable?'<span class="tag err">未导入</span>':(!['off','auto'].includes(x.effortWanted)&&x.effort==='off')?'<span class="tag warn">已导入·已降级</span>':'<span class="tag ok">已导入</span>';
-  return '<tr><td class="id">'+esc(x.id)+'</td><td>'+st+'</td><td>'+(x.usable?LBL[x.effort]:'—')+'</td><td class="note">'+esc(x.note||'')+'</td></tr>'}).join('');
+  return '<tr><td class="id">'+esc(x.id)+'</td><td>'+st+'</td><td>'+(x.usable?LBL[x.effort]+(x.levels&&x.effort!=='off'?'<div class="note">可选 '+x.levels.map(v=>LBL[v]).join(' / ')+'</div>':''):'—')+'</td><td class="note">'+esc(x.note||'')+'</td></tr>'}).join('');
   let h='<div class="tbl solo"><table><thead><tr><th>模型</th><th>结果</th><th>思考强度</th><th>说明</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   if(r.ok){h+='<div class="final"><p class="ok">✓ 完成：已导入 '+r.written.length+' 个模型</p><p class="hint">回到 WorkBuddy，在输入框上方的模型选择器里往下翻到「自定义 / Custom」分组即可使用，无需重启。'+(r.merged===true?'（已确认 WorkBuddy 接收）':r.merged===false?'（WorkBuddy 可能还在启动，稍等几秒再看）':'（WorkBuddy 下次启动时生效）')+'</p><button class="sec" id="bq">完成，关闭本工具</button></div>';$('b4').textContent='✓ 已导入';$('b4').classList.add('fin');open(5)}
   else{h+='<p class="msg err"></p>';busy($('b4'),0)}
