@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '2.2.2';
+export const VERSION = '2.2.3';
 export const DEFAULT_INPUT_TOKENS = 200000;
 export const DEFAULT_OUTPUT_TOKENS = 8192;
 const UA = `wb-setup/${VERSION}`;
@@ -218,12 +218,17 @@ export function mergeModels(existing, incoming, base, owner, prune) {
  * Windows：rename 可能被占用/杀软挡住，改为原地覆盖 + 重试；
  * 其它平台：tmp + rename 原子替换（实测同样能触发 WorkBuddy 的 1s 热重载）。
  */
+/** 备份文件名：YYYYMMDDHHMMSS 结尾，保证不以点或空格结尾（Windows 无法正常删除这类文件） */
+export function backupName(file, now = new Date()) {
+  const stamp = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  return `${file}.bak.${stamp}`.replace(/[. ]+$/, '');
+}
+
 export function writeConfig(file, cfg, models, availableModels) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   let backup = null;
   if (fs.existsSync(file)) {
-    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
-    backup = `${file}.bak.${stamp}`;
+    backup = backupName(file);
     fs.copyFileSync(file, backup);
   }
   const payload = cfg.shape === 'array'

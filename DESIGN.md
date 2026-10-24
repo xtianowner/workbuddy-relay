@@ -4,6 +4,11 @@
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
+## 变更 2.2.3（备份文件名修复）
+
+- 写入 models.json 前的备份文件名改为 `models.json.bak.YYYYMMDDHHMMSS`。2.2.2 及更早版本生成的名字以点结尾（如 `.bak.20261024145701.`），Windows 无法正常删除。
+- 新增 backupName 单元测试，保证文件名不以点或空格结尾。
+
 ## 变更 2.2.2（Windows 自定义安装目录检测）
 
 - Windows：WorkBuddy 装在自定义目录（如 D:\workbuddy）时，改从卸载注册表（DisplayIcon/InstallLocation）和正在运行的 WorkBuddy.exe 找到程序位置。

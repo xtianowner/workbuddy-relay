@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
+import { backupName,
   normalizeBase, candidates, extractIds, mergeModels, pickChatModels,
   buildEntry, writeConfig, readConfig,
 } from '../lib/wb-core.mjs';
@@ -119,4 +119,13 @@ test('回归 2.0.1：自动清理/修复旧版写坏的条目（仅本工具、�
   assert.deepEqual(r.models.map((m) => m.id), ['gpt-5.5', 'user-own', 'other']);
   assert.equal(r.models[0].url, `${S}/v1/chat/completions`);
   assert.deepEqual(r.pruned.sort(), ['claude-*', 'old-bad']);
+});
+
+test('backupName: 时间戳 14 位，结尾无点/空格（Windows 可正常删除）', () => {
+  for (const d of [new Date('2026-10-24T14:57:01.123Z'), new Date('2026-01-01T00:00:00.000Z'), new Date()]) {
+    const n = backupName('C:\\Users\\x\\.workbuddy\\models.json', d);
+    assert.match(n, /\.bak\.\d{14}$/);
+    assert.doesNotMatch(n, /[. ]$/);
+  }
+  assert.equal(backupName('/h/.workbuddy/models.json', new Date('2026-10-24T14:57:01.999Z')), '/h/.workbuddy/models.json.bak.20261024145701');
 });
