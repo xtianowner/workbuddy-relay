@@ -40,6 +40,12 @@ legacy/index.html        废弃：旧的「网页生成 curl|bash 命令 + 远�
 - 交互输入共用一个 readline 实例（`ask`），多实例会在非 TTY 下丢输入。
 - 平台接口事实与确认项见 DESIGN.md §3、§4。
 
+## 2.3.0 备注
+
+- 思考档位只用 WorkBuddy 对话框选择器能显示的 5 档 low/medium/high/xhigh/max（不含 minimal）。每个模型先发无效值（被接受=中转站忽略参数→保守写低/中/高），否则并发逐档试 5 档 + none；结果写进 supportedEfforts / canDisableThinking。
+- 不要信无效值报错里列出的取值：那是全局枚举，不是该模型支持的档位。
+- 版本号批量替换时注意 windows-exe/package-lock.json 的误匹配（bare-url 等依赖版本）。
+
 ## 2.2.1 备注
 - UI 默认中性黑灰（#1F2329），不再保留其它配色。
 - 思考强度默认 `auto`：对所选每个模型实测（不按名字猜），通过开「中」，否则关闭；逻辑在 `lib/wb-flow.mjs` + `lib/wb-reasoning.mjs`，测试模型 `acme-mind-7`（未知名但支持思考）在 mock-relays 里。

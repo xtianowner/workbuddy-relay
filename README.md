@@ -9,7 +9,7 @@
 - 双击后自动在浏览器打开本地导入页面，全程网页填写，不用在终端里输入
 - 输入站点地址，自动识别 new-api / sub2api
 - 用平台令牌列出你已有的 Key 选择，或新建一个；也可以直接粘贴 `sk-` Key
-- 列出聊天模型，勾选要导入的，并给**每个模型选思考强度**（默认「自动（实测）」：每个模型都真实发一次小请求，中转站接受思考参数就开「中」，否则关闭；也可手动改成关闭/低/中/高）
+- 列出聊天模型，勾选要导入的，并给**每个模型选思考强度**（默认「自动（实测）」：每个模型逐档发几个小请求，查出它在该中转站实际支持的档位——低/中/高/超高/极致中的哪些、能否关闭思考——按「中」导入；不支持思考就关闭；也可手动改成关闭/低/中/高/超高/极致）
 - 导入前逐个探测：模型不可用不导入；思考参数被中转站拒绝的自动降级为不带思考，并在页面说明原因；DeepSeek / Qwen / GLM 会自动尝试其专用思考格式
 - 写入 WorkBuddy，WorkBuddy 运行中会热加载，无需重启；导入的模型在 WorkBuddy 里可切换思考强度
 - 自动清理本工具旧版本写入的同站点失效条目
@@ -39,11 +39,11 @@
 
 ```json
 { "supportsReasoning": true,
-  "reasoning": { "defaultEffort": "medium", "supportedEfforts": ["low", "medium", "high"], "canDisableThinking": true },
+  "reasoning": { "defaultEffort": "medium", "supportedEfforts": ["low", "medium", "high", "xhigh", "max"], "canDisableThinking": false },
   "compat": { "thinkingFormat": "deepseek" } }
 ```
 
-`compat` 只在中转站不认 OpenAI 的 `reasoning_effort`、但认 DeepSeek / Qwen / GLM 专用格式时才写；选「关闭」或探测不通过时写 `supportsReasoning: false`。
+`supportedEfforts` / `canDisableThinking` 按实测写入（例如 smaragents 上的 gpt-6 是低~极致、不能关闭思考）；中转站忽略思考参数、档位无法区分时保守写低/中/高。`compat` 只在中转站不认 OpenAI 的 `reasoning_effort`、但认 DeepSeek / Qwen / GLM 专用格式时才写；选「关闭」或探测不通过时写 `supportsReasoning: false`。
 
 平台令牌：
 

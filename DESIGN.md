@@ -4,6 +4,13 @@
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
+## 变更 2.3.0：每个模型实测思考档位（低/中/高/超高/极致）
+
+- WorkBuddy 5.8.3 认可的档位（Mac 与 天选 的 app.asar 一致）：minimal/low/medium/high/xhigh/max，中文标签 低/低/中/高/超高/极致；其它值（如 ultra）会被过滤。对话框模型选择器只显示 low/medium/high/xhigh/max（getReasoningEffortItems），minimal 不显示，所以本工具不提供也不探测 minimal。canDisableThinking:false 时选择器不出现「关闭思考」。
+- 导入时每个模型：先发一个无效取值（被接受 = 中转站忽略参数 → 保守写低/中/高）；否则并发逐档试 5 档 + none，接受的写进 supportedEfforts，none 决定 canDisableThinking。
+- 无效值报错里列出的是全局枚举，不代表该模型支持（smaragents 实测 gpt-6 拒绝 minimal/none），所以必须逐档实测。
+- 想要的档位不在支持范围内时改用最接近的档，并在结果页写明。
+
 ## 变更 2.2.3（备份文件名修复）
 
 - 写入 models.json 前的备份文件名改为 `models.json.bak.YYYYMMDDHHMMSS`。2.2.2 及更早版本生成的名字以点结尾（如 `.bak.20261024145701.`），Windows 无法正常删除。

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>workbuddy-relay 使用手册 v2.2.3</title>
+<title>workbuddy-relay 使用手册 v2.3.0</title>
 <style>
 body{font-family:"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;color:#222;line-height:1.75}
 h1{border-bottom:3px solid #2b6cb0;padding-bottom:8px}h2{margin-top:2em;color:#2b6cb0;border-bottom:1px solid #ddd}h3{margin-top:1.4em}
@@ -15,7 +15,7 @@ code{background:#f2f2f2;padding:1px 4px;border-radius:3px}
 @media print{body{max-width:none;padding:0}h2{page-break-before:always}h2.first{page-break-before:avoid}img{page-break-inside:avoid}}
 </style></head><body>
 <h1>workbuddy-relay 使用手册</h1>
-<p>版本 v2.2.3 · 2026-10-24</p>
+<p>版本 v2.3.0 · 2026-10-24</p>
 <p>这个小工具能把你在中转站（new-api 或 sub2api 搭建的网站）上的 API Key，一键导入到 WorkBuddy 里。导入以后，你就能在 WorkBuddy 里直接选用中转站提供的模型，不用再手动填地址、复制 Key。</p>
 
 <div class="toc"><b>目录</b><ol>
@@ -27,9 +27,9 @@ code{background:#f2f2f2;padding:1px 4px;border-radius:3px}
 <p>使用前，电脑上要先装好 WorkBuddy（<a href="https://www.workbuddy.cn/">https://www.workbuddy.cn/</a>）。</p>
 <p>打开下载页 <a href="https://github.com/xtianowner/workbuddy-relay/releases/latest">https://github.com/xtianowner/workbuddy-relay/releases/latest</a>，在页面底部的「Assets」里，按你的电脑选一个下载：</p>
 <table><tr><th>你的电脑</th><th>下载这个文件</th></tr>
-<tr><td>Windows</td><td><code>workbuddy-relay-2.2.3-win.zip</code></td></tr>
-<tr><td>Mac（M1/M2/M3/M4 等 Apple 芯片）</td><td><code>workbuddy-relay-2.2.3-mac-arm64.zip</code></td></tr>
-<tr><td>Mac（Intel 芯片）</td><td><code>workbuddy-relay-2.2.3-mac-x64.zip</code></td></tr></table>
+<tr><td>Windows</td><td><code>workbuddy-relay-2.3.0-win.zip</code></td></tr>
+<tr><td>Mac（M1/M2/M3/M4 等 Apple 芯片）</td><td><code>workbuddy-relay-2.3.0-mac-arm64.zip</code></td></tr>
+<tr><td>Mac（Intel 芯片）</td><td><code>workbuddy-relay-2.3.0-mac-x64.zip</code></td></tr></table>
 <div class="tip">不知道 Mac 是哪种芯片？点屏幕左上角苹果图标 →「关于本机」，「芯片」一栏写着 Apple M… 就是 Apple 芯片，写着 Intel 就是 Intel。</div>
 <p>下载后双击 zip 解压，会得到一个文件夹，里面有程序和一份 README.txt。</p>
 <div class="miss">【缺图 1-1】GitHub Release 页面 Assets 区域，标出要点的下载文件</div>
@@ -83,11 +83,11 @@ code{background:#f2f2f2;padding:1px 4px;border-radius:3px}
 <h2 id="c5">5 选择模型和思考强度</h2>
 <p>第 3 步会列出这个 Key 能用的聊天模型（向量、图片等非聊天模型已自动去掉）。</p>
 <ul><li>勾选你要导入的模型。默认勾选前 12 个，可以点「全选」「全不选」；</li>
-<li>每个模型右边可以选<b>思考强度</b>：自动（实测）/ 关闭 / 低 / 中 / 高。默认是「自动（实测）」：导入时程序会给每个模型真实发一次很小的请求，中转站接受思考参数就按「中」导入，不接受就关闭；你也可以手动指定；</li>
+<li>每个模型右边可以选<b>思考强度</b>：自动（实测）/ 关闭 / 低 / 中 / 高 / 超高 / 极致（与 WorkBuddy 对话框里能选的档位一致）。默认是「自动（实测）」：导入时程序会给每个模型逐档发几个很小的请求，查出这个模型在该中转站实际支持哪些档位（例如 GPT-6 支持 低~极致、不能关闭思考），按「中」导入；不支持思考就关闭。你也可以手动指定，选的档位该模型不支持时会自动换成最接近的一档，结果页会写明；</li>
 <li>想统一设置，可以在右上角「把勾选的都设为」里选一个。</li></ul>
 <img src="img/web-04-models.png" alt="选择模型和思考强度">
 <p class="cap">图 5-1　勾选模型，并给每个模型选思考强度。</p>
-<div class="tip">这里选的是默认思考强度。导入后，在 WorkBuddy 里也能随时为每次对话切换「低 / 中 / 高」。思考强度越高，回答越慢、消耗的额度越多。</div>
+<div class="tip">这里选的是默认思考强度。导入后，在 WorkBuddy 里也能随时在该模型支持的档位之间切换（结果页「思考强度」一栏下方会列出可选档位）。思考强度越高，回答越慢、消耗的额度越多。</div>
 
 <h2 id="c6">6 导入并查看结果</h2>
 <p>点第 4 步的「导入到 WorkBuddy」。程序会逐个测试模型，几秒到几十秒后显示结果表：</p>

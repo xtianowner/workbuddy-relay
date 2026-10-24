@@ -47,7 +47,7 @@ def scenario_newapi(b, home):
     rows = {pg.locator('#mt tr').nth(i).locator('td.id').inner_text(): pg.locator('#mt tr').nth(i) for i in range(pg.locator('#mt tr').count())}
     results.append(('模型列表', set(rows) == {'gpt-5.5', 'claude-sonnet-4', 'broken-model', 'deepseek-v3.1', 'acme-mind-7'}, sorted(rows)))
     results.append(('默认建议', all(r.locator('select').input_value() == 'auto' for r in rows.values()), ''))
-    rows['gpt-5.5'].locator('select').select_option('high')
+    rows['gpt-5.5'].locator('select').select_option('xhigh')
     rows['claude-sonnet-4'].locator('select').select_option('medium')
     rows['deepseek-v3.1'].locator('select').select_option('low')
     shot(pg, 'web-04-models.png', '#c3')
@@ -57,7 +57,7 @@ def scenario_newapi(b, home):
     data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json')))}
     results.append(('models.json 思考字段', set(data) == {'gpt-5.5', 'claude-sonnet-4', 'deepseek-v3.1', 'acme-mind-7'}
         and data['acme-mind-7']['reasoning']['defaultEffort'] == 'medium' and data['acme-mind-7']['supportsReasoning'] is True
-        and data['gpt-5.5']['reasoning'] == {'defaultEffort': 'high', 'supportedEfforts': ['low', 'medium', 'high'], 'canDisableThinking': True}
+        and data['gpt-5.5']['reasoning'] == {'defaultEffort': 'xhigh', 'supportedEfforts': ['low', 'medium', 'high', 'xhigh', 'max'], 'canDisableThinking': False}
         and data['claude-sonnet-4']['supportsReasoning'] is False and 'reasoning' not in data['claude-sonnet-4']
         and data['deepseek-v3.1']['compat'] == {'thinkingFormat': 'deepseek'} and data['deepseek-v3.1']['reasoning']['defaultEffort'] == 'low'
         and data['gpt-5.5']['apiKey'].startswith('sk-AAAAdefault'), ''))

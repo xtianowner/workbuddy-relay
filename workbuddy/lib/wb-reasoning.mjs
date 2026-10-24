@@ -8,10 +8,58 @@
  *
  * 本模块：按模型家族给出默认建议、用与 WorkBuddy 一致的请求格式做一次小探测，不支持就降级。
  */
-// auto = 每个模型都实测一次：中转站接受思考参数就开「中」，否则关闭
-export const EFFORTS = ['auto', 'off', 'low', 'medium', 'high'];
-export const EFFORT_LABEL = { auto: '自动（实测）', off: '关闭', low: '低', medium: '中', high: '高' };
+// WorkBuddy 5.8.3 对话框模型选择器能显示的档位（app.asar 内 getReasoningEffortItems 列表，见 DESIGN.md）；顺序即从低到高。
+// minimal 虽是合法值但选择器不显示，所以不提供也不探测。
+export const WB_LEVELS = ['low', 'medium', 'high', 'xhigh', 'max'];
+// auto = 每个模型都实测：先查中转站支持哪些档位，再以「中」（或最接近的档）打开
+export const EFFORTS = ['auto', 'off', ...WB_LEVELS];
+export const EFFORT_LABEL = { auto: '自动（实测）', off: '关闭', low: '低', medium: '中', high: '高', xhigh: '超高', max: '极致' };
+// 查不出档位时的保守默认
 export const SUPPORTED_EFFORTS = ['low', 'medium', 'high'];
+
+/** 把想要的档位落到该模型支持的档位上：在列表里就用它，否则取最接近的 */
+export function nearestLevel(want, levels) {
+  if (!levels?.length) return want;
+  if (levels.includes(want)) return want;
+  const idx = (v) => WB_LEVELS.indexOf(v);
+  const w = idx(want === 'auto' ? 'medium' : want);
+  return [...levels].sort((a, b) => Math.abs(idx(a) - w) - Math.abs(idx(b) - w) || idx(a) - idx(b))[0];
+}
+
+async function effortRequest(base, key, model, effort, fetchImpl, timeoutMs) {
+  const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const tok = usesCompletionTokens(model) ? { max_completion_tokens: 16 } : { max_tokens: 16 };
+    const res = await fetchImpl(`${base}/chat/completions`, {
+      method: 'POST', signal: ctrl.signal,
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'hi' }], stream: false, ...tok, reasoning_effort: effort }),
+    });
+    const text = await res.text();
+    let msg = ''; try { const j = JSON.parse(text); msg = j?.error?.message || j?.message || ''; } catch { /* 非 JSON */ }
+    const ok = res.ok && checkReasoningResponse(res.headers.get('content-type'), text).ok;
+    return { ok, status: res.status, msg: String(msg) };
+  } catch (e) { return { ok: false, status: 0, msg: e.name === 'AbortError' ? '超时' : String(e.message) }; }
+  finally { clearTimeout(t); }
+}
+
+/**
+ * 查一个模型（OpenAI 格式）支持哪些档位，时间有上限（每个请求 ≤20s，同一模型的请求并发）：
+ *  1) 先发一个不存在的取值：被接受说明中转站忽略该参数，档位无法区分 → 返回 null，用保守默认；
+ *  2) 否则并发逐档试 WorkBuddy 的 5 档 + none（none 决定能否关闭思考）。
+ *  注意：对不存在取值的报错列出的是全局枚举，不是该模型支持的档位（smaragents 实测），所以不能只看那条报错。
+ * 返回 { levels: string[]|null, canDisable: boolean|null, how }
+ */
+export async function probeLevels(base, key, model, { fetchImpl = fetch, timeoutMs = 20000 } = {}) {
+  const r = await effortRequest(base, key, model, 'wb_probe_invalid', fetchImpl, timeoutMs);
+  if (r.ok) return { levels: null, canDisable: null, how: 'ignored' };
+  if (r.status === 0 || r.status === 429 || r.status >= 500) return { levels: null, canDisable: null, how: 'error' };
+  const tries = await Promise.all([...WB_LEVELS, 'none'].map(async (v) => [v, await effortRequest(base, key, model, v, fetchImpl, timeoutMs)]));
+  const okSet = new Set(tries.filter(([, t]) => t.ok).map(([v]) => v));
+  const flaky = tries.some(([, t]) => !t.ok && (t.status === 0 || t.status === 429 || t.status >= 500));
+  const levels = WB_LEVELS.filter((v) => okSet.has(v));
+  return { levels: levels.length ? levels : null, canDisable: okSet.has('none'), how: flaky ? 'partial' : 'each' };
+}
 
 export function familyOf(id) {
   const s = String(id).toLowerCase();
@@ -92,11 +140,13 @@ export async function probeReasoning(base, key, model, effort, { fetchImpl = fet
 }
 
 /** 生成写进 models.json 的思考相关字段 */
-export function reasoningFields(effort, format) {
+export function reasoningFields(effort, format, levels, canDisable) {
   if (!effort || effort === 'off') return { supportsReasoning: false };
+  const supported = levels?.length ? WB_LEVELS.filter((v) => levels.includes(v)) : [...SUPPORTED_EFFORTS];
+  if (!supported.includes(effort)) supported.push(effort), supported.sort((a, b) => WB_LEVELS.indexOf(a) - WB_LEVELS.indexOf(b));
   return {
     supportsReasoning: true,
-    reasoning: { defaultEffort: effort, supportedEfforts: [...SUPPORTED_EFFORTS], canDisableThinking: true },
+    reasoning: { defaultEffort: effort, supportedEfforts: supported, canDisableThinking: canDisable !== false },
     ...(format && format !== 'openai' ? { compat: { thinkingFormat: format } } : {}),
   };
 }
