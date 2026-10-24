@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '2.2.1';
+export const VERSION = '2.2.2';
 export const DEFAULT_INPUT_TOKENS = 200000;
 export const DEFAULT_OUTPUT_TOKENS = 8192;
 const UA = `wb-setup/${VERSION}`;

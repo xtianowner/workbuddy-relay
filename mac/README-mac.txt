@@ -1,4 +1,4 @@
-WorkBuddy 中转站一键导入工具  v2.2.1（macOS）
+WorkBuddy 中转站一键导入工具  v2.2.2（macOS）
 ==============================================
 
 作用：把 new-api / sub2api 中转站的 Key 一键导入 WorkBuddy 的自定义模型。

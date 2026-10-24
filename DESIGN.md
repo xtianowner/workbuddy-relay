@@ -4,6 +4,12 @@
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
+## 变更 2.2.2（Windows 自定义安装目录检测）
+
+- Windows：WorkBuddy 装在自定义目录（如 D:\workbuddy）时，改从卸载注册表（DisplayIcon/InstallLocation）和正在运行的 WorkBuddy.exe 找到程序位置。
+- 仍找不到程序但已有 ~/.workbuddy/models.json 时，提示后继续导入，不再直接退出。
+- 已在真实 Windows 10（WorkBuddy 5.8.3 装在 D 盘）上实测通过。
+
 ## 变更 2.2.1（黑灰界面 + 每个模型实测思考强度）
 
 - 界面：默认配色改为中性黑灰（主色 #1F2329，与 WorkBuddy 一致），删除备选配色。

@@ -144,7 +144,9 @@ async function main() {
   info('配置文件', defaultConfigPath(args.config));
   result.steps.detect = { installed: app.installed, version: app.version, running: app.running, path: app.appPath };
 
-  if (!app.installed) {
+  if (!app.installed && fs.existsSync(defaultConfigPath(args.config))) {
+    warn('没找到 WorkBuddy 程序位置，但已有配置文件，继续导入（导入后请手动打开 WorkBuddy）');
+  } else if (!app.installed) {
     const page = args.downloadPage || 'https://www.workbuddy.cn/';
     if (args.installer) {
       warn('未安装，尝试用指定的安装包自动安装…');

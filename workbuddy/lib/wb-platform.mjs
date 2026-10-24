@@ -84,6 +84,9 @@ function detectWin(r) {
     if (m) { guesses.unshift(m[1].trim().replace(/^"|"$/g, '')); break; }
   }
 
+  // 自定义安装目录（如 D:\workbuddy）：卸载项 DisplayIcon / InstallLocation，再看正在运行的进程
+  for (const p of [...uninstallPaths(), runningExePath()]) if (p && !guesses.includes(p)) guesses.push(p);
+
   for (const g of guesses) if (fs.existsSync(g)) { r.exePath = g; break; }
 
   if (r.exePath) {
@@ -92,6 +95,22 @@ function detectWin(r) {
     const ps = run('powershell', ['-NoProfile', '-Command', `(Get-Item -LiteralPath '${r.exePath.replace(/'/g, "''")}').VersionInfo.ProductVersion`]);
     r.version = ps || regVersion();
   }
+}
+
+function uninstallPaths() {
+  const found = [];
+  for (const key of ['HKCU\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall', 'HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall']) {
+    const out = run('reg', ['query', key, '/s', '/f', 'WorkBuddy']);
+    if (!out) continue;
+    for (const m of out.matchAll(/DisplayIcon\s+REG_(?:EXPAND_)?SZ\s+"?([^\r\n",]+?\.exe)/gi)) found.push(m[1].trim());
+    for (const m of out.matchAll(/InstallLocation\s+REG_(?:EXPAND_)?SZ\s+"?([^\r\n"]+)/gi)) found.push(path.join(m[1].trim(), 'WorkBuddy.exe'));
+  }
+  return found.filter((p) => /workbuddy\.exe$/i.test(p));
+}
+
+function runningExePath() {
+  const out = run('powershell', ['-NoProfile', '-Command', "(Get-Process -Name WorkBuddy -ErrorAction SilentlyContinue | Select-Object -First 1).Path"]);
+  return out && /\.exe$/i.test(out.trim()) ? out.trim() : null;
 }
 
 function regVersion() {
