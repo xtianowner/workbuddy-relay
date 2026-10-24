@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>一键接入 WorkBuddy</title>
+<style>
+  :root { --fg:#111; --muted:#666; --line:#e5e5e5; --bg:#fff; --soft:#f7f7f7; --accent:#185fa5; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#eee; --muted:#999; --line:#333; --bg:#141414; --soft:#1d1d1d; --accent:#85b7eb; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:48px 20px; font:15px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+         color:var(--fg); background:var(--bg); }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 8px; }
+  .sub { color: var(--muted); margin: 0 0 28px; font-size: 14px; }
+  .card { border:1px solid var(--line); border-radius:10px; padding:20px; margin-bottom:16px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 7px; border-radius:4px;
+         background:var(--soft); color:var(--muted); margin-left:8px; vertical-align:2px; }
+  .tag.rec { background:var(--accent); color:#fff; }
+  pre { background:var(--soft); border:1px solid var(--line); border-radius:8px; padding:14px;
+        overflow-x:auto; font:12.5px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+        margin:12px 0; white-space:pre-wrap; word-break:break-all; }
+  button { font:inherit; font-size:14px; padding:9px 18px; border-radius:8px; cursor:pointer;
+           border:1px solid var(--line); background:var(--soft); color:var(--fg); }
+  button:hover { border-color: var(--accent); }
+  button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .steps { color:var(--muted); font-size:13.5px; line-height:1.9; padding-left:20px; margin:0; }
+  .note { font-size:13px; color:var(--muted); margin-top:8px; }
+  .warn { border:1px solid var(--line); border-left:3px solid #e24b4a; border-radius:8px;
+          padding:12px 16px; font-size:13.5px; color:var(--muted); margin-bottom:20px; display:none; }
+  code { background:var(--soft); padding:1px 5px; border-radius:3px; font-size:12.5px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>一键接入 WorkBuddy</h1>
+  <p class="sub">把下面的命令复制到终端执行。全程约 15 秒，导入后不用重启。</p>
+
+  <div class="warn" id="warn"></div>
+
+  <div class="card" id="card-mac">
+    <div><strong>macOS</strong><span class="tag" id="tag-mac">推荐</span></div>
+    <pre id="cmd-mac"></pre>
+    <button class="primary" data-copy="mac">复制命令</button>
+    <p class="note">打开「终端」（Terminal），粘贴回车。不需要管理员密码。</p>
+  </div>
+
+  <div class="card" id="card-win">
+    <div><strong>Windows</strong><span class="tag" id="tag-win"></span></div>
+    <pre id="cmd-win"></pre>
+    <button class="primary" data-copy="win">复制命令</button>
+    <p class="note">在开始菜单搜索 <code>PowerShell</code> 打开，粘贴回车。</p>
+  </div>
+
+  <div class="card">
+    <div><strong>它会做什么</strong></div>
+    <ol class="steps">
+      <li>检测 WorkBuddy 装在哪、什么版本、是否在运行</li>
+      <li>连接中转站，拉取你的可用模型列表</li>
+      <li>逐个验证模型是否真的可用，把用不了的剔掉</li>
+      <li>写入配置（会先备份原来的，不影响已有模型）</li>
+      <li>唤起 WorkBuddy，并确认配置真的生效</li>
+    </ol>
+  </div>
+</div>
+
+<script>
+/* ---------- 站点地址：自动推导，无需手改 ---------- */
+const SITE = (() => {
+  const u = new URL(location.href);
+  const dir = u.origin + u.pathname.replace(/[^/]*$/, '');
+  return dir.replace(/\/$/, '') + '/workbuddy';
+})();
+
+/* ---------- 参数从 fragment 读，不走 query（避免进 Referer / 服务器日志） ---------- */
+const params = new URLSearchParams(location.hash.slice(1));
+const key = params.get('key') || params.get('apiKey') || '';
+const RELAY = params.get('relay') || params.get('url') || params.get('baseUrl') || 'https://relay.example.com';
+
+/* ---------- 引号转义 ---------- */
+const q = (s) => "'" + String(s).replace(/'/g, "'\\''") + "'";   // sh
+const pq = (s) => "'" + String(s).replace(/'/g, "''") + "'";     // powershell
+
+const cmds = {
+  mac: `curl -fsSL ${SITE}/setup.sh | WB_SRC_BASE=${q(SITE)} bash -s -- --url ${q(RELAY)}`
+       + (key ? ` --key ${q(key)}` : ''),
+  win: `$env:WB_SRC_BASE=${pq(SITE)}; $env:WB_RELAY_URL=${pq(RELAY)}; $env:WB_RELAY_KEY=${pq(key)}; irm ${SITE}/setup.ps1 | iex`,
+};
+
+for (const k of ['mac', 'win']) document.getElementById('cmd-' + k).textContent = cmds[k];
+
+/* ---------- 只高亮推荐，两个系统都始终显示 ---------- */
+if (/Windows/i.test(navigator.userAgent)) {
+  document.getElementById('card-mac').before(document.getElementById('card-win'));
+  document.getElementById('tag-mac').textContent = '';
+  document.getElementById('tag-win').textContent = '推荐';
+}
+
+/* ---------- 缺参数的提示 ---------- */
+const warnBox = document.getElementById('warn');
+const warns = [];
+if (!key) warns.push('链接里没有带上 API Key。命令执行后会提示你手动输入，或从正确入口重新进入。');
+if (/example\.com/.test(RELAY)) warns.push('还没有设置中转站地址。请在链接里带上 #relay=https://你的中转站域名');
+if (warns.length) {
+  warnBox.innerHTML = warns.map((s) => '<div>· ' + s + '</div>').join('');
+  warnBox.style.display = 'block';
+}
+
+/* ---------- 复制（clipboard 失败时退回 execCommand） ---------- */
+async function copy(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  }
+}
+
+document.querySelectorAll('[data-copy]').forEach((btn) => {
+  btn.addEventListener('click', async () => {
+    const ok = await copy(cmds[btn.dataset.copy]);
+    const old = btn.textContent;
+    btn.textContent = ok ? '已复制，去终端粘贴' : '复制失败，请手动选中';
+    setTimeout(() => { btn.textContent = old; }, 2200);
+  });
+});
+</script>
+</body>
+</html>
