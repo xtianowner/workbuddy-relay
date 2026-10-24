@@ -4,6 +4,11 @@
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
+## 变更 2.2.1（黑灰界面 + 每个模型实测思考强度）
+
+- 界面：默认配色改为中性黑灰（主色 #1F2329，与 WorkBuddy 一致），删除备选配色。
+- 思考强度：新增默认选项 `auto`「自动（实测）」。不再按模型名猜：所选的**每个**模型都用 `reasoning_effort=medium` 实测一次（并发 4，单次超时 30s；DeepSeek/Qwen/GLM 被拒时再试各自格式）。接受 → `supportsReasoning:true` + `reasoning{defaultEffort:'medium', supportedEfforts:['low','medium','high'], canDisableThinking:true}`；不接受 → 关闭。用户仍可在网页里逐个改成关闭/低/中/高（手动档位不通过时照旧降级）。CLI `--effort auto` 同此逻辑。
+
 ## 变更 2.2.0（网页填写 + 每个模型可选思考强度）
 
 **交互**：不带参数运行（双击 exe / Mac 程序 / .command / .bat）= 网页模式（`lib/wb-web.mjs` + `lib/wb-page.html`）。

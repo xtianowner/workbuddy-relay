@@ -52,11 +52,11 @@ export function startWebServer({ app, configPath, fetchImpl = fetch, idleMs = 30
       if (found.fatal) { s.key = null; throw new Error(`读取模型列表失败：${found.fatal}`); }
       s.base = found.base;
       const ids = pickChatModels(found.ids, 500);
-      return { keyName: s.keyName, masked: maskKey(s.key), base: s.base, models: ids.map((id, i) => ({ id, family: familyOf(id), suggest: suggestEffort(id), checked: i < 12 })) };
+      return { keyName: s.keyName, masked: maskKey(s.key), base: s.base, models: ids.map((id, i) => ({ id, family: familyOf(id), suggest: 'auto', checked: i < 12 })) };
     },
     'POST /api/import': async ({ models }) => {
       if (!s.key) throw new Error('请先选择 Key');
-      const list = (Array.isArray(models) ? models : []).filter((m) => m && typeof m.id === 'string' && m.id.trim()).map((m) => ({ id: m.id.trim(), effort: EFFORTS.includes(m.effort) ? m.effort : 'off' }));
+      const list = (Array.isArray(models) ? models : []).filter((m) => m && typeof m.id === 'string' && m.id.trim()).map((m) => ({ id: m.id.trim(), effort: EFFORTS.includes(m.effort) ? m.effort : 'auto' }));
       if (!list.length) throw new Error('请至少勾选一个模型');
       const r = await runImport({ base: s.base, key: s.key, models: list, configPath, fetchImpl });
       if (r.ok) { s.done = true; quitTimer = setTimeout(() => { log('导入完成，自动退出'); shutdown(0); }, quitAfterDoneMs); }

@@ -82,7 +82,7 @@ def main():
             cfg = os.path.join(home, '.workbuddy', 'models.json')
             data = json.load(open(cfg)) if os.path.exists(cfg) else []
             ids = sorted(m['id'] for m in data)
-            ok = code == 0 and ids == ['claude-sonnet-4', 'deepseek-v3.1', 'gpt-5.5'] and '已接收配置' in out \
+            ok = code == 0 and ids == ['acme-mind-7', 'claude-sonnet-4', 'deepseek-v3.1', 'gpt-5.5'] and '已接收配置' in out \
                  and reasoning_ok(data) \
                  and all(m['url'].endswith('/v1/chat/completions') for m in data) \
                  and (not want_url or all(m['url'] == want_url + '/chat/completions' for m in data)) \

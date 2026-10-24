@@ -1,6 +1,6 @@
 // 本地模拟 new-api（:18081）和 sub2api（:18082），只实现 wb-relay / wb-core 用到的接口，返回结构按 MaaS 确认的 rc.46 行为
 import http from 'node:http';
-const MODELS = ['gpt-5.5', 'claude-sonnet-4', 'text-embedding-3-small', 'broken-model', 'deepseek-v3.1', 'claude-*', 'gpt-*', 'codex-*'];
+const MODELS = ['gpt-5.5', 'claude-sonnet-4', 'text-embedding-3-small', 'broken-model', 'deepseek-v3.1', 'acme-mind-7', 'claude-*', 'gpt-*', 'codex-*'];
 const HTML = (res) => { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end('<!doctype html><html><body>SPA</body></html>'); };
 const send = (res, code, obj) => { res.writeHead(code, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(obj)); };
 const body = (req) => new Promise((r) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => r(b ? JSON.parse(b) : {})); });
@@ -18,7 +18,7 @@ function relay(req, res, keys, b) {
     const wantsThink = b.reasoning_effort !== undefined || b.thinking !== undefined;
     if (wantsThink && b.model === 'claude-sonnet-4') return send(res, 400, { error: { message: 'Unrecognized request argument supplied: reasoning_effort' } }), true;
     if (b.reasoning_effort !== undefined && b.model === 'deepseek-v3.1') return send(res, 400, { error: { message: 'reasoning_effort not supported' } }), true;
-    const think = (b.model === 'gpt-5.5' && b.reasoning_effort) || (b.model === 'deepseek-v3.1' && b.thinking?.type === 'enabled');
+    const think = (['gpt-5.5', 'acme-mind-7'].includes(b.model) && b.reasoning_effort) || (b.model === 'deepseek-v3.1' && b.thinking?.type === 'enabled');
     return send(res, 200, { id: 'x', choices: [{ message: { role: 'assistant', content: 'p', ...(think ? { reasoning_content: '…' } : {}) } }], usage: { completion_tokens: 3, completion_tokens_details: { reasoning_tokens: think ? 12 : 0 } } }), true;
   }
   return false;

@@ -45,17 +45,18 @@ def scenario_newapi(b, home):
     pg.click('#bKeys'); pg.wait_for_selector('#keys label'); shot(pg, 'web-03-keys.png', '#c2')
     pg.click('#b2'); pg.wait_for_selector('#mt tr')
     rows = {pg.locator('#mt tr').nth(i).locator('td.id').inner_text(): pg.locator('#mt tr').nth(i) for i in range(pg.locator('#mt tr').count())}
-    results.append(('模型列表', set(rows) == {'gpt-5.5', 'claude-sonnet-4', 'broken-model', 'deepseek-v3.1'}, sorted(rows)))
-    results.append(('默认建议', rows['gpt-5.5'].locator('select').input_value() == 'medium' and rows['broken-model'].locator('select').input_value() == 'off', ''))
+    results.append(('模型列表', set(rows) == {'gpt-5.5', 'claude-sonnet-4', 'broken-model', 'deepseek-v3.1', 'acme-mind-7'}, sorted(rows)))
+    results.append(('默认建议', all(r.locator('select').input_value() == 'auto' for r in rows.values()), ''))
     rows['gpt-5.5'].locator('select').select_option('high')
     rows['claude-sonnet-4'].locator('select').select_option('medium')
     rows['deepseek-v3.1'].locator('select').select_option('low')
     shot(pg, 'web-04-models.png', '#c3')
     pg.click('#b4'); pg.wait_for_selector('.final, #res .msg.err', timeout=60000); shot(pg, 'web-05-result.png', '#c4')
     txt = pg.inner_text('#res')
-    results.append(('结果页', '已导入 3 个模型' in txt and '已降级' in txt and '未导入' in txt, txt.replace('\n', ' | ')[:300]))
+    results.append(('结果页', '已导入 4 个模型' in txt and '已降级' in txt and '未导入' in txt, txt.replace('\n', ' | ')[:300]))
     data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json')))}
-    results.append(('models.json 思考字段', set(data) == {'gpt-5.5', 'claude-sonnet-4', 'deepseek-v3.1'}
+    results.append(('models.json 思考字段', set(data) == {'gpt-5.5', 'claude-sonnet-4', 'deepseek-v3.1', 'acme-mind-7'}
+        and data['acme-mind-7']['reasoning']['defaultEffort'] == 'medium' and data['acme-mind-7']['supportsReasoning'] is True
         and data['gpt-5.5']['reasoning'] == {'defaultEffort': 'high', 'supportedEfforts': ['low', 'medium', 'high'], 'canDisableThinking': True}
         and data['claude-sonnet-4']['supportsReasoning'] is False and 'reasoning' not in data['claude-sonnet-4']
         and data['deepseek-v3.1']['compat'] == {'thinkingFormat': 'deepseek'} and data['deepseek-v3.1']['reasoning']['defaultEffort'] == 'low'

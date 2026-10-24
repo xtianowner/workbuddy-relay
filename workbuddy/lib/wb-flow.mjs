@@ -11,7 +11,7 @@ export const OWNER = 'wb-setup-v1';
  */
 export async function runImport({ base, key, models, configPath, owner = OWNER, skipProbe = false, dryRun = false, vendor = 'Custom', prefix = '', fetchImpl = fetch, mergeTimeoutMs = 8000, onProgress = () => {} }) {
   const file = defaultConfigPath(configPath);
-  const rows = await mapLimit(models, 4, async ({ id, effort = 'off' }) => {
+  const rows = await mapLimit(models, 4, async ({ id, effort = 'auto' }) => {
     const row = { id, effortWanted: effort, effort: 'off', usable: true, note: '' };
     if (!skipProbe) {
       const r = await probe(base, key, id);
@@ -19,10 +19,12 @@ export async function runImport({ base, key, models, configPath, owner = OWNER, 
       if (!r.ok) { onProgress(row); return { ...row, usable: false, note: `不可用（${r.reason}）` }; }
     }
     if (effort !== 'off') {
-      if (skipProbe) { row.effort = effort; row.format = 'openai'; row.note = '未探测思考强度'; }
+      const want = effort === 'auto' ? 'medium' : effort; // 自动：所有模型都实测，通过就默认「中」
+      if (skipProbe) { if (effort !== 'auto') { row.effort = effort; row.format = 'openai'; row.note = '未探测思考强度'; } }
       else {
-        const t = await probeReasoning(base, key, id, effort, { fetchImpl });
-        if (t.ok) { row.effort = effort; row.format = t.format; row.confirmed = t.confirmed; row.note = t.confirmed ? '思考强度已生效' : '中转站已接受思考参数（未返回思考内容，无法确认是否生效）'; }
+        const t = await probeReasoning(base, key, id, want, { fetchImpl });
+        if (effort === 'auto' && !t.ok) row.note = `实测不支持思考强度（${t.reason}），已关闭`;
+        else if (t.ok) { row.effort = want; row.format = t.format; row.confirmed = t.confirmed; row.note = t.confirmed ? '思考强度已生效' : '中转站已接受思考参数（未返回思考内容，无法确认是否生效）'; }
         else row.note = `该模型经此中转站不支持思考强度（${t.reason}），已按不带思考强度导入`;
       }
     }

@@ -105,7 +105,7 @@ if (args.help) {
   （不带参数双击/运行时：打开本地网页填写，推荐普通用户使用）
   --web                 强制打开本地网页模式
   --interactive         终端里的问答式引导（开发者用）
-  --effort <e>          思考强度：auto(默认，按模型家族) | off | low | medium | high
+  --effort <e>          思考强度：auto(默认，逐个实测，支持就开「中」) | off | low | medium | high
   --models a,b,c        指定模型，跳过自动发现
   --vendor <name>       供应商显示名（默认 Custom）
   --name-prefix <s>     模型名前缀，便于在列表里认出是谁
@@ -254,12 +254,12 @@ async function main() {
   }
   // 思考强度：按 --effort 或模型家族建议；探测不通过就降级为不带思考强度
   const effortArg = (args.effort || 'auto').toLowerCase();
-  if (effortArg !== 'auto' && !EFFORTS.includes(effortArg)) die(`--effort 只能是 auto/${EFFORTS.join('/')}`);
+  if (!EFFORTS.includes(effortArg)) die(`--effort 只能是 ${EFFORTS.join('/')}`);
   const reasoning = {};
   await mapLimit(picked, 4, async (m) => {
-    const e = effortArg === 'auto' ? suggestEffort(m) : effortArg;
+    const e = effortArg === 'auto' ? 'medium' : effortArg; // auto：每个模型都实测
     if (e === 'off') { reasoning[m] = { effort: 'off' }; return; }
-    if (args.noProbe || args.dryRun) { reasoning[m] = { effort: e, format: 'openai' }; return; }
+    if (args.noProbe || args.dryRun) { reasoning[m] = effortArg === 'auto' ? { effort: suggestEffort(m), format: 'openai' } : { effort: e, format: 'openai' }; return; }
     const t = await probeReasoning(base, key, m, e);
     if (t.ok) reasoning[m] = { effort: e, format: t.format };
     else { reasoning[m] = { effort: 'off' }; warn(`${m} 经此中转站不支持思考强度（${t.reason}），按不带思考强度导入`); }

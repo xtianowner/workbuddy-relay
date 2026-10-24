@@ -39,3 +39,7 @@ legacy/index.html        废弃：旧的「网页生成 curl|bash 命令 + 远�
 - `setup.ps1` 必须保持纯 ASCII（PowerShell 5.1 会误解码无 BOM 的 UTF-8）。
 - 交互输入共用一个 readline 实例（`ask`），多实例会在非 TTY 下丢输入。
 - 平台接口事实与确认项见 DESIGN.md §3、§4。
+
+## 2.2.1 备注
+- UI 默认中性黑灰（#1F2329），不再保留其它配色。
+- 思考强度默认 `auto`：对所选每个模型实测（不按名字猜），通过开「中」，否则关闭；逻辑在 `lib/wb-flow.mjs` + `lib/wb-reasoning.mjs`，测试模型 `acme-mind-7`（未知名但支持思考）在 mock-relays 里。

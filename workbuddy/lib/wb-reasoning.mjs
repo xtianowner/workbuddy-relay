@@ -8,8 +8,9 @@
  *
  * 本模块：按模型家族给出默认建议、用与 WorkBuddy 一致的请求格式做一次小探测，不支持就降级。
  */
-export const EFFORTS = ['off', 'low', 'medium', 'high'];
-export const EFFORT_LABEL = { off: '关闭', low: '低', medium: '中', high: '高' };
+// auto = 每个模型都实测一次：中转站接受思考参数就开「中」，否则关闭
+export const EFFORTS = ['auto', 'off', 'low', 'medium', 'high'];
+export const EFFORT_LABEL = { auto: '自动（实测）', off: '关闭', low: '低', medium: '中', high: '高' };
 export const SUPPORTED_EFFORTS = ['low', 'medium', 'high'];
 
 export function familyOf(id) {
@@ -62,8 +63,9 @@ export function checkReasoningResponse(contentType, text) {
 }
 
 /** 对一个模型做思考强度探测；返回 { ok, format, confirmed } 或 { ok:false, reason } */
-export async function probeReasoning(base, key, model, effort, { fetchImpl = fetch, timeoutMs = 45000 } = {}) {
+export async function probeReasoning(base, key, model, effort, { fetchImpl = fetch, timeoutMs = 30000 } = {}) {
   if (!effort || effort === 'off') return { ok: true, format: null, confirmed: false, skipped: true };
+  if (effort === 'auto') effort = 'medium';
   let last = '';
   for (const f of formatsFor(model)) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeoutMs);
