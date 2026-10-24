@@ -24,4 +24,5 @@ WorkBuddy 中转站一键导入工具  v2.1.0（Windows）
   - 首次运行 Windows 可能提示「Windows 已保护你的电脑」（SmartScreen，因为程序未签名），
     点「更多信息」→「仍要运行」即可。
   - 平台令牌只在本次运行的内存中使用，不会写入磁盘或日志。
+  - 完整图文手册见 Release 页面中的 PDF / HTML
   - 开源项目，源码：https://github.com/xtianowner/workbuddy-relay （MIT）

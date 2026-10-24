@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>workbuddy-relay 使用手册 v2.1.0</title>
+<style>
+body{font-family:"Noto Sans CJK SC","PingFang SC","Microsoft YaHei",sans-serif;max-width:860px;margin:0 auto;padding:24px;color:#222;line-height:1.75}
+h1{border-bottom:3px solid #2b6cb0;padding-bottom:8px}h2{margin-top:2em;color:#2b6cb0;border-bottom:1px solid #ddd}h3{margin-top:1.4em}
+img{max-width:100%;border:1px solid #ccc;border-radius:6px;display:block;margin:8px 0}
+.cap{color:#666;font-size:.9em;margin-bottom:1em}
+.tip{background:#ebf8ff;border-left:4px solid #3182ce;padding:8px 12px;margin:12px 0}
+.warn{background:#fffaf0;border-left:4px solid #dd6b20;padding:8px 12px;margin:12px 0}
+.miss{background:#f7f7f7;border:2px dashed #aaa;padding:16px;color:#777;text-align:center;margin:8px 0}
+table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccc;padding:6px 10px;text-align:left}th{background:#f0f4f8}
+code{background:#f2f2f2;padding:1px 4px;border-radius:3px}
+.toc a{text-decoration:none}
+@media print{body{max-width:none;padding:0}h2{page-break-before:always}h2.first{page-break-before:avoid}img{page-break-inside:avoid}}
+</style></head><body>
+<h1>workbuddy-relay 使用手册</h1>
+<p>版本 v2.1.0 · 2026-10-24</p>
+<p>这个小工具能把你在中转站（new-api 或 sub2api 搭建的网站）上的 API Key，一键导入到 WorkBuddy 里。导入以后，你就能在 WorkBuddy 里直接选用中转站提供的模型，不用再手动填地址、复制 Key。</p>
+
+<div class="toc"><b>目录</b><ol>
+<li><a href="#c1">下载</a></li><li><a href="#c2">双击运行</a></li><li><a href="#c3">填写站点地址</a></li>
+<li><a href="#c4">拿平台令牌，或直接粘贴 Key</a></li><li><a href="#c5">选择 Key，等待导入完成</a></li>
+<li><a href="#c6">在 WorkBuddy 里确认</a></li><li><a href="#c7">常见问题</a></li><li><a href="#c8">反馈问题</a></li></ol></div>
+
+<h2 id="c1" class="first">1 下载</h2>
+<p>使用前，电脑上要先装好 WorkBuddy（<a href="https://www.workbuddy.cn/">https://www.workbuddy.cn/</a>）。</p>
+<p>打开下载页 <a href="https://github.com/xtianowner/workbuddy-relay/releases/latest">https://github.com/xtianowner/workbuddy-relay/releases/latest</a>，在页面底部的「Assets」里，按你的电脑选一个下载：</p>
+<table><tr><th>你的电脑</th><th>下载这个文件</th></tr>
+<tr><td>Windows</td><td><code>workbuddy-relay-2.1.0-win.zip</code></td></tr>
+<tr><td>Mac（M1/M2/M3/M4 等 Apple 芯片）</td><td><code>workbuddy-relay-2.1.0-mac-arm64.zip</code></td></tr>
+<tr><td>Mac（Intel 芯片）</td><td><code>workbuddy-relay-2.1.0-mac-x64.zip</code></td></tr></table>
+<div class="tip">不知道 Mac 是哪种芯片？点屏幕左上角苹果图标 →「关于本机」，「芯片」一栏写着 Apple M… 就是 Apple 芯片，写着 Intel 就是 Intel。</div>
+<p>下载后双击 zip 解压，会得到一个文件夹，里面有程序和一份 README.txt。</p>
+<div class="miss">【缺图 1-1】GitHub Release 页面 Assets 区域，标出要点的下载文件</div>
+
+<h2 id="c2">2 双击运行</h2>
+<h3>2.1 Windows</h3>
+<p>双击 <code>WorkBuddy-Relay-Import.exe</code>，会弹出一个黑色窗口，所有操作都在这个窗口里完成。</p>
+<p>第一次运行时，Windows 可能弹出蓝色提示「Windows 已保护你的电脑」。点「更多信息」，再点「仍要运行」就行。出现这个提示是因为程序没有做商业签名，并不代表有病毒。</p>
+<div class="miss">【缺图 2-1】Windows SmartScreen 提示框，标出「更多信息」和「仍要运行」</div>
+<h3>2.2 Mac</h3>
+<p>双击 <code>WorkBuddy-Relay-Import</code>，系统会自动打开「终端」窗口运行它。</p>
+<p>第一次打开时，Mac 可能提示「无法打开，因为无法验证开发者」。处理方法：</p>
+<ol><li>先点「完成」或「好」，把提示关掉；</li>
+<li>打开「系统设置」→「隐私与安全性」，往下翻，会看到一句「已阻止使用 WorkBuddy-Relay-Import」，点它旁边的「仍要打开」；</li>
+<li>输入开机密码确认，然后再双击一次程序。</li></ol>
+<p>在较早的 macOS 版本上，也可以在程序上点右键 →「打开」→「打开」。</p>
+<div class="miss">【缺图 2-2】macOS 无法验证开发者的提示框</div>
+<div class="miss">【缺图 2-3】系统设置 → 隐私与安全性里的「仍要打开」按钮</div>
+<h3>2.3 运行后会看到什么</h3>
+<p>程序会先检查电脑上有没有装 WorkBuddy。如果提示没找到，请先安装 WorkBuddy，再重新双击运行。检查通过后，程序会一步一步提问，你按提示输入，然后按回车。</p>
+
+<h2 id="c3">3 填写站点地址</h2>
+<p>看到「第 1 步 · 中转站地址」时，输入你平时用浏览器打开中转站的那个网址，比如 <code>https://api.example.com</code>，然后按回车。</p>
+<p>程序会自动识别这个站点是 new-api 还是 sub2api，识别成功会显示绿色的 ✓。</p>
+<img src="img/01-site-token-newapi.png" alt="填写站点地址并输入平台令牌">
+<p class="cap">图 3-1　填写站点地址后，识别为 new-api；接着选择 1，粘贴平台令牌（令牌已打码）。截图来自本地测试站点，所以地址是 127.0.0.1，你看到的会是自己中转站的网址。</p>
+<div class="tip">如果显示「未能识别平台类型」，也没关系，接下来直接粘贴 Key 就能继续。</div>
+
+<h2 id="c4">4 拿平台令牌，或直接粘贴 Key</h2>
+<p>看到「第 2 步 · 怎么获取 Key」时，有两种方式可选：</p>
+<ul><li>输入 <b>1</b>：用平台令牌自动获取。程序会把你账号里已有的 Key 列出来让你选，也可以帮你新建一个。</li>
+<li>输入 <b>2</b>：如果你已经在网站上复制好了 Key，选这个直接粘贴。</li></ul>
+<h3>4.1 new-api：获取平台令牌（推荐）</h3>
+<ol><li>用浏览器登录你的中转站；</li>
+<li>进入「个人设置」→「访问令牌」→「新建」；</li>
+<li>把 <code>api_key:read</code>、<code>api_key:reveal</code>、<code>api_key:write</code> 这三项权限都勾上；</li>
+<li>复制生成的那串以 <code>nap_</code> 开头的令牌，回到程序窗口粘贴，再按回车。</li></ol>
+<div class="miss">【缺图 4-1】new-api 网页「访问令牌」新建界面，标出三个权限勾选框和复制按钮</div>
+<div class="tip">平台令牌只在这次运行时用一下，程序不会把它保存到电脑上。</div>
+<h3>4.2 sub2api：建议直接粘贴 Key</h3>
+<p>sub2api 获取平台令牌的步骤比较麻烦，建议在网站的「API 密钥」页面点复制，回到程序选 <b>2</b>，然后粘贴。</p>
+<div class="miss">【缺图 4-2】sub2api 网页「API 密钥」页面，标出复制按钮</div>
+<h3>4.3 直接粘贴 Key</h3>
+<img src="img/03-paste-key.png" alt="直接粘贴 Key">
+<p class="cap">图 4-3　选择 2 以后，粘贴以 sk- 开头的 Key（Key 已打码）。</p>
+<h3>4.4 令牌填错了怎么办</h3>
+<p>如果令牌不对，或者没勾全权限，程序会用黄色文字提示「自动获取失败」，然后自动切换到粘贴 Key 的方式，你粘贴 Key 继续就可以。</p>
+<img src="img/04-token-fallback.png" alt="令牌错误自动改为粘贴">
+<p class="cap">图 4-4　令牌无效时，程序自动改为手动粘贴。</p>
+
+<h2 id="c5">5 选择 Key，等待导入完成</h2>
+<p>如果你是用平台令牌获取的，程序会显示「第 3 步 · 选择 Key」，列出你账号里已有的 Key（只显示开头和结尾几位）：</p>
+<ul><li>输入 Key 前面的数字，就是选用这个 Key；</li>
+<li>输入 <b>n</b>，程序会帮你新建一个 WorkBuddy 专用的 Key；</li>
+<li>直接按回车，就是选默认的第 1 个。</li></ul>
+<img src="img/02-select-key-sub2api.png" alt="选择 Key">
+<p class="cap">图 5-1　选择已有的 Key。</p>
+<p>选好以后，程序会自动完成后面的事：连接中转站、测试哪些模型能用、写入 WorkBuddy。看到最后一行「完成 · 共 N 个模型可用」就说明成功了。</p>
+<img src="img/05-import-done.png" alt="导入完成">
+<p class="cap">图 5-2　导入完成。不能用的模型会用黄色标出并自动跳过，只导入能用的。</p>
+<p>在 Windows 上，看到「按回车键关闭窗口…」时按回车就能关掉窗口；在 Mac 上，直接关闭终端窗口即可。</p>
+
+<h2 id="c6">6 在 WorkBuddy 里确认</h2>
+<ol><li>回到 WorkBuddy，不需要重启；</li>
+<li>点输入框上方的模型选择器；</li>
+<li>往下翻到「自定义 / Custom」分组，能看到刚导入的模型就说明成功了；</li>
+<li>选一个模型，发一句话试试看。</li></ol>
+<div class="miss">【缺图 6-1】WorkBuddy 模型选择器中的「自定义 / Custom」分组</div>
+
+<h2 id="c7">7 常见问题</h2>
+<h3>7.1 提示没有检测到 WorkBuddy</h3>
+<p>先安装 WorkBuddy 并至少打开一次，然后重新运行本工具。</p>
+<h3>7.2 Windows 提示「已保护你的电脑」，Mac 提示「无法验证开发者」</h3>
+<p>见第 2 章，按步骤放行即可。</p>
+<h3>7.3 某个模型显示「不可用」</h3>
+<p>说明中转站这个模型现在调不通，比如没有可用的渠道，或者余额不足。程序只会导入能用的模型，等站点那边恢复后再运行一次就行。</p>
+<h3>7.4 一个能用的模型都没有</h3>
+<p>请检查三件事：Key 是否复制完整、Key 在网站上是否处于启用状态、账户余额是否充足。</p>
+<h3>7.5 重复运行会不会导入重复的模型？</h3>
+<p>不会。同一个站点重复导入只会更新原来的条目，还会自动清理以前导入后不能用的旧条目。</p>
+<h3>7.6 我的 Key 和令牌安全吗？</h3>
+<p>平台令牌只在运行时用一下，不会保存。Key 会写进 WorkBuddy 自己的配置文件，WorkBuddy 要靠它来调用模型。这个文件只有你自己的账户能读。</p>
+<h3>7.7 想换一个中转站或换一个 Key</h3>
+<p>重新运行本工具，填新的站点地址或者选新的 Key 就行。</p>
+
+<h2 id="c8">8 反馈问题</h2>
+<p>遇到问题或者有建议，可以到这里提交：<a href="https://github.com/xtianowner/workbuddy-relay/issues">https://github.com/xtianowner/workbuddy-relay/issues</a>，点「New issue」。</p>
+<p>请写清楚这几件事：用的是 Windows 还是 Mac、做到了第几步、你希望看到什么、实际看到了什么。最好附一张程序窗口的截图，<b>记得先把 Key 和令牌打码</b>。</p>
+<p style="margin-top:3em;color:#888;font-size:.85em">本工具是开源软件（MIT 许可），源码地址：https://github.com/xtianowner/workbuddy-relay</p>
+</body></html>

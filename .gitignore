@@ -7,3 +7,4 @@ windows-exe/out/
 __pycache__/
 *.pyc
 .env
+manual/out/

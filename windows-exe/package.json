@@ -1,9 +1,14 @@
 {
   "name": "workbuddy-relay-windows-exe",
   "private": true,
-  "description": "Optional build: bundle wb-setup into a single Windows exe",
+  "description": "Optional build: bundle wb-setup into single Windows / macOS executables",
   "scripts": {
-    "build": "esbuild entry.mjs --bundle --platform=node --target=node20 --format=cjs --minify --legal-comments=none --outfile=out/wb.cjs && pkg out/wb.cjs -t node20-win-x64 -C GZip -o out/WorkBuddy-Relay-Import.exe"
+    "bundle": "esbuild entry.mjs --bundle --platform=node --target=node20 --format=cjs --minify --legal-comments=none --outfile=out/wb.cjs",
+    "build": "npm run bundle && pkg out/wb.cjs -t node20-win-x64 -C GZip -o out/WorkBuddy-Relay-Import.exe",
+    "build:all": "bash ../build-release.sh"
   },
-  "devDependencies": { "@yao-pkg/pkg": "^6.14.2", "esbuild": "^0.28.2" }
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.14.2",
+    "esbuild": "^0.28.2"
+  }
 }
