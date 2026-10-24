@@ -4,7 +4,7 @@ if (process.pkg && process.platform === 'win32' && process.argv.length <= 2) {
   const realExit = process.exit.bind(process);
   let done = false;
   const hold = () => {
-    if (done) return; done = true;
+    if (done || process.env.WB_NO_HOLD === '1') return; done = true;
     process.stdout.write('\n  按回车键关闭窗口…');
     try { const b = Buffer.alloc(16); fs.readSync(0, b, 0, 16, null); } catch { /* ignore */ }
   };

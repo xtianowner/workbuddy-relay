@@ -6,10 +6,14 @@
 
 ## 功能
 
+- 双击后自动在浏览器打开本地导入页面，全程网页填写，不用在终端里输入
 - 输入站点地址，自动识别 new-api / sub2api
 - 用平台令牌列出你已有的 Key 选择，或新建一个；也可以直接粘贴 `sk-` Key
-- 自动探测可用的聊天模型并写入 WorkBuddy，WorkBuddy 运行中会热加载，无需重启
+- 列出聊天模型，勾选要导入的，并给**每个模型选思考强度**（关闭/低/中/高，按模型家族给默认建议）
+- 导入前逐个探测：模型不可用不导入；思考参数被中转站拒绝的自动降级为不带思考，并在页面说明原因；DeepSeek / Qwen / GLM 会自动尝试其专用思考格式
+- 写入 WorkBuddy，WorkBuddy 运行中会热加载，无需重启；导入的模型在 WorkBuddy 里可切换思考强度
 - 自动清理本工具旧版本写入的同站点失效条目
+- 本地页面只监听 127.0.0.1 的随机端口，带一次性口令，并校验 Host / Origin，其他网页调用不了
 - 平台令牌只在内存里用，不落盘、不写日志
 
 ## 下载（推荐普通用户）
@@ -27,7 +31,19 @@
 
 > ⚠️ macOS 包为 Linux 交叉编译 + ad-hoc 签名，**尚未在真 Mac 上实测**；Windows exe 已在 wine 下运行验证，尚未在真 Windows 上实测。遇到问题请提 [Issue](https://github.com/xtianowner/workbuddy-relay/issues)。
 
-运行后按提示操作：输入站点地址 → 选「用平台令牌自动获取」或「直接粘贴 Key」→ 选 Key → 看到「完成」后，在 WorkBuddy 模型选择器的「自定义 / Custom」分组里使用。
+双击后会自动打开浏览器页面：填站点地址 → 选「用平台令牌自动获取」或「直接粘贴 Key」→ 选 Key → 勾选模型、选思考强度 → 点「导入到 WorkBuddy」→ 看结果后点「完成，关闭本工具」。然后在 WorkBuddy 模型选择器的「自定义 / Custom」分组里使用。
+
+## 思考强度写到哪里
+
+导入的模型在 `models.json` 里按 WorkBuddy 自己写本地模型的格式写入（依据 WorkBuddy 安装包内的实现，见 DESIGN.md）：
+
+```json
+{ "supportsReasoning": true,
+  "reasoning": { "defaultEffort": "medium", "supportedEfforts": ["low", "medium", "high"], "canDisableThinking": true },
+  "compat": { "thinkingFormat": "deepseek" } }
+```
+
+`compat` 只在中转站不认 OpenAI 的 `reasoning_effort`、但认 DeepSeek / Qwen / GLM 专用格式时才写；选「关闭」或探测不通过时写 `supportsReasoning: false`。
 
 平台令牌：
 
@@ -36,12 +52,14 @@
 
 ## 从源码运行（开发者 / 不想用二进制）
 
-本仓库就是全部源码（MIT）。克隆或下载源码后双击 `macOS-双击导入.command` / `Windows-双击导入.bat`（借用 WorkBuddy 自带的 Electron 运行，无需装 Node），或 `node workbuddy/wb-setup.mjs --help`。
+本仓库就是全部源码（MIT）。克隆或下载源码后双击 `macOS-双击导入.command` / `Windows-双击导入.bat`（借用 WorkBuddy 自带的 Electron 运行，无需装 Node，同样打开网页），或 `node workbuddy/wb-setup.mjs`。
+
+开发者可用命令行参数跳过网页：`node workbuddy/wb-setup.mjs --url https://relay.example.com --key sk-… --effort auto`（`--effort auto|off|low|medium|high`），`--interactive` 进入终端问答式引导，`--help` 查看全部参数。
 
 ## 目录
 
 ```
-workbuddy/            主程序（wb-setup.mjs 入口，lib/ 核心逻辑，setup.sh / setup.ps1 启动脚本）
+workbuddy/            主程序（wb-setup.mjs 入口，lib/ 核心逻辑与网页 wb-page.html（改后运行 node lib/build-page.mjs），setup.sh / setup.ps1 启动脚本）
 workbuddy/test/       单元测试与端到端测试（mock 中转站）
 windows-exe/          单文件可执行程序的打包配置（Windows / macOS 共用）
 mac/                  macOS 包附带的 README
@@ -58,7 +76,9 @@ build-zip.sh          打用户发行 zip（输出到 dist/）
 ```bash
 cd workbuddy
 node --test test/*.test.mjs          # 单元测试（不要写成 test/，会把 e2e mock 服务器挂起）
-python3 test/e2e/run-e2e.py          # 端到端交互测试（需要 python3，Linux/macOS）
+python3 test/e2e/run-e2e.py          # 命令行/终端引导端到端测试（需要 python3，Linux/macOS）
+python3 test/e2e/web-e2e.py          # 网页模式端到端测试（需要 python3 + playwright + chromium）
+# 两个 e2e 都支持 WB_E2E_CMD=<打包后的程序> 来测试成品
 ```
 
 打用户 zip：`bash build-zip.sh` → `dist/workbuddy-relay-<版本>.zip`

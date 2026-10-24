@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-export const VERSION = '2.1.0';
+export const VERSION = '2.2.0';
 export const DEFAULT_INPUT_TOKENS = 200000;
 export const DEFAULT_OUTPUT_TOKENS = 8192;
 const UA = `wb-setup/${VERSION}`;
@@ -169,7 +169,7 @@ export function readConfig(file) {
   }
 }
 
-export function buildEntry(id, base, key, { vendor = 'Custom', prefix = '', owner = '', inputTokens, outputTokens, supportsImages = false, supportsReasoning = false } = {}) {
+export function buildEntry(id, base, key, { vendor = 'Custom', prefix = '', owner = '', inputTokens, outputTokens, supportsImages = false, supportsReasoning = false, extra = {} } = {}) {
   return {
     id,
     name: prefix ? `${prefix}${id}` : id,
@@ -183,6 +183,7 @@ export function buildEntry(id, base, key, { vendor = 'Custom', prefix = '', owne
     supportsReasoning,
     useCustomProtocol: false,
     ...(owner ? { wbImportOwner: owner } : {}),
+    ...extra,
   };
 }
 

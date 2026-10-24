@@ -62,9 +62,11 @@ async function chooseKey(keys) {
   if (ans === 'n') return 'new';
   return keys[(Number(ans) || 1) - 1]?.id ?? keys[0].id;
 }
+import { suggestEffort, probeReasoning, reasoningFields, EFFORTS, EFFORT_LABEL } from './lib/wb-reasoning.mjs';
+import { startWebServer } from './lib/wb-web.mjs';
 import { detect, launch, focus, openBrowser, installMacDmg, installWinExe } from './lib/wb-platform.mjs';
 
-const BOOL = ['interactive', 'dry-run', 'yes', 'no-probe', 'no-launch', 'json', 'help', 'version', 'install'];
+const BOOL = ['web', 'interactive', 'dry-run', 'yes', 'no-probe', 'no-launch', 'json', 'help', 'version', 'install'];
 const args = (() => {
   const out = { _: [] };
   const argv = process.argv.slice(2);
@@ -100,7 +102,10 @@ if (args.help) {
   --key-name <s>        新建 Key 的名称（默认 WorkBuddy）
   --platform-user-id <n> new-api 用户 ID（New-Api-User 头，默认自动获取）
   --key-id <id|new>     直接指定用哪个 Key，或 new 新建（不指定则交互选择）
-  --interactive         强制进入交互式引导（双击启动时自动进入）
+  （不带参数双击/运行时：打开本地网页填写，推荐普通用户使用）
+  --web                 强制打开本地网页模式
+  --interactive         终端里的问答式引导（开发者用）
+  --effort <e>          思考强度：auto(默认，按模型家族) | off | low | medium | high
   --models a,b,c        指定模型，跳过自动发现
   --vendor <name>       供应商显示名（默认 Custom）
   --name-prefix <s>     模型名前缀，便于在列表里认出是谁
@@ -162,8 +167,20 @@ async function main() {
     ok(`已安装 ${app.version ? `v${app.version}` : ''}${app.running ? '，正在运行（热加载生效，无需重启）' : ''}`);
   }
 
-  /* ---------- 交互式引导（双击启动时进入） ---------- */
-  const interactive = args.interactive || (!url && !key && process.stdin.isTTY);
+  /* ---------- 本地网页模式（双击启动时默认进入） ---------- */
+  if (args.web || (!url && !key && !args.interactive && !args.json && !args.platformToken && !process.env.WB_PLATFORM_TOKEN)) {
+    if (!args.noLaunch && !app.running && process.env.WB_SKIP_DETECT !== '1') { try { launch(app); } catch { /* 打不开也不影响导入 */ } }
+    const srv = await startWebServer({ app, configPath: args.config, log: (m) => console.log(`      ${m}`) });
+    console.log(`\n${C.b('已在浏览器中打开导入页面')}，请在网页里完成填写。`);
+    console.log(C.dim(`      如果浏览器没有自动打开，请复制这个地址到浏览器：\n      ${srv.url}`));
+    console.log(C.dim('      导入完成后点网页上的「完成，关闭本工具」，本窗口会自动关闭。'));
+    if (process.env.WB_WEB_URL_FILE) fs.writeFileSync(process.env.WB_WEB_URL_FILE, srv.url, { mode: 0o600 }); // 仅供自动化测试
+    if (process.env.WB_NO_BROWSER !== '1') openBrowser(srv.url);
+    return;
+  }
+
+  /* ---------- 终端交互式引导（--interactive） ---------- */
+  const interactive = !!args.interactive;
   if (interactive && !url) url = await askSite();
   if (interactive && url && !key && !args.platformToken && !process.env.WB_PLATFORM_TOKEN) ({ url, key } = await wizardKey(url));
   // v2：没有 sk-key 时，用平台现有凭证（new-api 个人访问令牌 nap_… / sub2api 登录 token）列出或新建 Key
@@ -235,8 +252,21 @@ async function main() {
     ok(`可用 ${good.length} / ${picked.length}`);
     picked = good;
   }
+  // 思考强度：按 --effort 或模型家族建议；探测不通过就降级为不带思考强度
+  const effortArg = (args.effort || 'auto').toLowerCase();
+  if (effortArg !== 'auto' && !EFFORTS.includes(effortArg)) die(`--effort 只能是 auto/${EFFORTS.join('/')}`);
+  const reasoning = {};
+  await mapLimit(picked, 4, async (m) => {
+    const e = effortArg === 'auto' ? suggestEffort(m) : effortArg;
+    if (e === 'off') { reasoning[m] = { effort: 'off' }; return; }
+    if (args.noProbe || args.dryRun) { reasoning[m] = { effort: e, format: 'openai' }; return; }
+    const t = await probeReasoning(base, key, m, e);
+    if (t.ok) reasoning[m] = { effort: e, format: t.format };
+    else { reasoning[m] = { effort: 'off' }; warn(`${m} 经此中转站不支持思考强度（${t.reason}），按不带思考强度导入`); }
+  });
+  info('思考强度', picked.map((m) => `${m}=${EFFORT_LABEL[reasoning[m].effort]}`).join(', '));
   result.models = picked;
-  result.steps.probe = { picked };
+  result.steps.probe = { picked, reasoning };
 
   /* ---------- 4. 写入 ---------- */
   step(4, '写入 WorkBuddy 配置');
@@ -244,7 +274,10 @@ async function main() {
   const vendor = args.vendor || 'Custom';
   const prefix = args.namePrefix || '';
   const owner = args.owner === undefined ? 'wb-setup-v1' : args.owner;
-  const incoming = picked.map((id) => buildEntry(id, base, key, { vendor, prefix, owner }));
+  const incoming = picked.map((id) => {
+    const r = reasoning[id]; const rf = reasoningFields(r.effort, r.format);
+    return buildEntry(id, base, key, { vendor, prefix, owner, extra: r.effort === 'off' ? { ...rf, reasoning: undefined, compat: undefined } : { ...rf, compat: rf.compat } });
+  });
 
   const cfg = readConfig(file);
   const { models, added, updated, skipped, pruned } = mergeModels(cfg.models, incoming, base, owner, !!args.prune);

@@ -4,6 +4,14 @@ import os, pty, re, sys, time, json, subprocess, tempfile, threading, glob, sele
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
+def reasoning_ok(data):
+    # gpt-5.5 支持 reasoning_effort；claude-sonnet-4 被中转站拒绝 → 降级；deepseek-v3.1 只认 thinking → compat.thinkingFormat=deepseek
+    m = {x['id']: x for x in data}
+    g, c, d = m.get('gpt-5.5', {}), m.get('claude-sonnet-4', {}), m.get('deepseek-v3.1', {})
+    return g.get('supportsReasoning') is True and g.get('reasoning', {}).get('defaultEffort') == 'medium' and 'compat' not in g \
+        and c.get('supportsReasoning') is False and 'reasoning' not in c \
+        and d.get('supportsReasoning') is True and d.get('compat') == {'thinkingFormat': 'deepseek'}
+
 def fake_workbuddy(home, stop):
     """模拟 WorkBuddy：监视 models.json，变化后写 cache/acc-product-config-v3.json（id 加 custom-local: 前缀）"""
     cfg = os.path.join(home, '.workbuddy', 'models.json'); last = None
@@ -22,7 +30,7 @@ def session(home, script):
     env = dict(os.environ, HOME=home, WB_SKIP_DETECT='1', NO_COLOR='1')
     pid, fd = pty.fork()
     if pid == 0:
-        os.chdir(ROOT); cmd = os.environ.get('WB_E2E_CMD'); os.execvpe(cmd or 'node', ([cmd] if cmd else ['node', 'wb-setup.mjs']) + ['--no-launch'], env)
+        os.chdir(ROOT); cmd = os.environ.get('WB_E2E_CMD'); os.execvpe(cmd or 'node', ([cmd] if cmd else ['node', 'wb-setup.mjs']) + ['--no-launch', '--interactive'], env)
     buf = ''; out = []
     def read_until(pat, timeout=30):
         nonlocal buf
@@ -74,7 +82,8 @@ def main():
             cfg = os.path.join(home, '.workbuddy', 'models.json')
             data = json.load(open(cfg)) if os.path.exists(cfg) else []
             ids = sorted(m['id'] for m in data)
-            ok = code == 0 and ids == ['claude-sonnet-4', 'gpt-5.5'] and '已接收配置' in out \
+            ok = code == 0 and ids == ['claude-sonnet-4', 'deepseek-v3.1', 'gpt-5.5'] and '已接收配置' in out \
+                 and reasoning_ok(data) \
                  and all(m['url'].endswith('/v1/chat/completions') for m in data) \
                  and (not want_url or all(m['url'] == want_url + '/chat/completions' for m in data)) \
                  and (not want_key or all(re.match(want_key, m['apiKey']) for m in data)) \

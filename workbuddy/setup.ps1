@@ -108,7 +108,7 @@ Say "Scripts: local $here"
 
 # ---------- 4) run ----------
 $argv = @($setup)
-if ($Url) { $argv += @('--url', $Url) } else { $argv += '--interactive' }
+if ($Url) { $argv += @('--url', $Url) } else { $argv += '--web' }
 if ($Key) { $argv += @('--key', $Key) }
 if ($Extra) { $argv += ($Extra -split '\s+') }
 if ($Json) { $argv += '--json' }

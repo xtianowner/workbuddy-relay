@@ -4,6 +4,25 @@
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
+## 变更 2.2.0（网页填写 + 每个模型可选思考强度）
+
+**交互**：不带参数运行（双击 exe / Mac 程序 / .command / .bat）= 网页模式（`lib/wb-web.mjs` + `lib/wb-page.html`）。
+- 只监听 `127.0.0.1` 随机端口；页面 URL 带一次性 token（`/?t=`），API 要求 `X-WB-Token` 头；校验 Host（防 DNS rebinding，否则 421）和 Origin（外站 403）；POST 只收 JSON（415）；CSP 禁外部资源。
+- 平台令牌 / Key 只存在进程内存，页面只拿到打码后的 Key。
+- 点「完成，关闭本工具」退出；导入成功 2 分钟后、或 30 分钟无操作自动退出。
+- `--url/--key` 等参数（命令行模式）和 `--interactive`（终端问答）保留给开发者；新增 `--effort auto|off|low|medium|high`。
+
+**WorkBuddy 思考强度字段（只读核对 Tian 的 Mac 上 WorkBuddy 安装包，未改任何文件、未读 Key）**：
+- `/Applications/WorkBuddy.app/Contents/Resources/app.asar` 约偏移 76289759：WorkBuddy 自己保存本地自定义模型（SAVE_LOCAL_CUSTOM_MODEL）时写入 `supportsReasoning` 与 `reasoning:{defaultEffort:'medium',supportedEfforts:['low','medium','high'],canDisableThinking:true}` —— 本工具照此格式写。
+- 同文件约 78414976 `enrichLanguageModelFromCatalog`：只有 `supportsReasoning` 为 undefined 时才从目录补；所以旧版写死 `supportsReasoning:false` 会让思考强度永远不出现（这就是 2.1.0「默认没有」的原因）。
+- 同文件约 89063334 `mapProductModelReasoning`：读取 effort / defaultEffort / supportedEfforts / summary / canDisableThinking。
+- 内置模型的缓存 `~/.workbuddy/cache/acc-product-config-v3.json` 中是 `supportsReasoning:true, reasoning:{defaultEffort:'high',supportedEfforts:['low','high','max'],...}`。
+- `app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs` 约 3760006 `createCompatibilityRules`：读自定义模型的 `compat` / `thinkingLevelMap`；`withSupportedEffortsFallback` 用 `reasoning.supportedEfforts` 生成 thinkingLevelMap；默认发 OpenAI Chat `reasoning_effort`；约 3750746 ThinkingFormatTranslatorRule 支持 `compat.thinkingFormat` = deepseek / qwen / zai / openrouter / together …；MaxTokensFieldRule 对 o1/o3/o4/gpt-4.1/gpt-5 改用 `max_completion_tokens`。
+
+**思考探测（`lib/wb-reasoning.mjs`）**：对选了思考强度的模型发一次 `POST /chat/completions`（与 WorkBuddy 一致：`reasoning_effort`，o/gpt-5 用 `max_completion_tokens`），要求 JSON + choices；有 `reasoning_content` 或 `reasoning_tokens>0` 记为「已生效」，否则「已接受、无法确认」。被拒绝时 DeepSeek / Qwen / GLM 再试各自格式（成功写 `compat.thinkingFormat`）；仍失败 → 降级为 `supportsReasoning:false`，页面说明原因。
+
+**待确认**：① new-api / sub2api 对 Claude / Gemini 是否把 `reasoning_effort` 转成各自的 thinking 参数，取决于站点版本和渠道配置，由运行时探测决定；② WorkBuddy 界面上自定义模型是否显示「思考强度」一栏——按代码应显示，但尚未在 WorkBuddy 界面实测。
+
 ## 变更 2.0.1（真机 bug：sub2api 站点导入后不可用）
 - 根因：粘贴模式用站点根地址作 base；旧逻辑「先试原样、再补 /v1」，sub2api 根路径 `/models` 也返回 JSON 模型列表，于是 base 定成了根地址，写入 `<站点>/chat/completions`。该地址是前端页面（HTML 200），而探测只看 2xx，所以误判为可用。
 - 修复：base 一律规范为 `<站点>/v1`，不再按根路径试探；探测要求响应 content-type 为 JSON 且含 `choices`；过滤含 `*`/`?` 的通配符模型 id；重跑时自动清理本工具旧版写坏的同站点条目（通配符 id、url 缺 /vN），用户自己写的条目不动。

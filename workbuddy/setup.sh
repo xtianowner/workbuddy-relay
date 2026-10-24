@@ -86,7 +86,7 @@ done
 if [ -n "$URL" ]; then
   set -- --url "$URL"
 else
-  set -- --interactive
+  set -- --web
 fi
 if [ -n "$KEY" ]; then
   set -- "$@" --key "$KEY"
