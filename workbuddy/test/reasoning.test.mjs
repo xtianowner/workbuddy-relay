@@ -35,18 +35,11 @@ test('models.json 思考字段（与 WorkBuddy 本地模型写入格式一致）
   assert.equal(out[0].supportsReasoning, false); assert.equal(out[0].reasoning, undefined); assert.equal(out[0].compat, undefined);
 });
 
-import { parseSupportedLevels, nearestLevel, probeLevels, WB_LEVELS, EFFORTS } from '../lib/wb-reasoning.mjs';
+import { nearestLevel, probeLevels, WB_LEVELS, EFFORTS } from '../lib/wb-reasoning.mjs';
 
 test('EFFORTS 覆盖 WorkBuddy 的 6 档', () => {
   assert.deepEqual(WB_LEVELS, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
   for (const v of WB_LEVELS) assert.ok(EFFORTS.includes(v));
-});
-
-test('parseSupportedLevels: 解析真实中转站报错（smaragents 2026-10-24 实测原文）', () => {
-  assert.deepEqual(parseSupportedLevels("Unsupported value: 'minimal' is not supported with the 'gpt-6-astra' model. Supported values are: 'low', 'medium', 'high', 'xhigh', and 'max'.；如需技术支持"), ['low', 'medium', 'high', 'xhigh', 'max']);
-  assert.deepEqual(parseSupportedLevels("Invalid value: 'ultra'. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'."), ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
-  assert.deepEqual(parseSupportedLevels('gpt-6.1-sol does not support reasoning effort "none"; use low, medium, high, xhigh or max；如需'), ['low', 'medium', 'high', 'xhigh', 'max']);
-  assert.equal(parseSupportedLevels('Unrecognized argument'), null);
 });
 
 test('nearestLevel', () => {

@@ -15,6 +15,8 @@ function relay(req, res, keys, b) {
   if (req.url === '/v1/chat/completions') {
     if (b.model === 'broken-model') return send(res, 503, { error: { message: 'no channel' } }), true;
     // 思考强度行为：gpt-5.5 支持 reasoning_effort；claude-sonnet-4 拒绝（测降级）；deepseek-v3.1 只认 thinking:{type:'enabled'}
+    // gpt-5.5 模拟 smaragents 上 gpt-6 的真实行为：只接受 low~max，拒绝 minimal / none / 无效值
+    if (b.model === 'gpt-5.5' && b.reasoning_effort !== undefined && !['low', 'medium', 'high', 'xhigh', 'max'].includes(b.reasoning_effort)) return send(res, 400, { error: { message: `Unsupported value: '${b.reasoning_effort}' is not supported with the 'gpt-5.5' model.` } }), true;
     const wantsThink = b.reasoning_effort !== undefined || b.thinking !== undefined;
     if (wantsThink && b.model === 'claude-sonnet-4') return send(res, 400, { error: { message: 'Unrecognized request argument supplied: reasoning_effort' } }), true;
     if (b.reasoning_effort !== undefined && b.model === 'deepseek-v3.1') return send(res, 400, { error: { message: 'reasoning_effort not supported' } }), true;

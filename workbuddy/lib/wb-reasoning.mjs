@@ -16,16 +16,6 @@ export const EFFORT_LABEL = { auto: '自动（实测）', off: '关闭', minimal
 // 查不出档位时的保守默认
 export const SUPPORTED_EFFORTS = ['low', 'medium', 'high'];
 
-/** 从中转站/上游报错里解析「支持的取值」：Supported values are: 'none', 'low'… / use low, medium, high, xhigh or max */
-export function parseSupportedLevels(msg) {
-  const s = String(msg || '');
-  const m = s.match(/supported values (?:are|is)[:：]?\s*([^.。；;]+)/i) || s.match(/\buse\s+((?:[a-z]+\s*(?:,|or|and)\s*)+[a-z]+)/i);
-  if (!m) return null;
-  const words = m[1].toLowerCase().match(/[a-z]+/g) || [];
-  const vals = words.filter((w) => w !== 'and' && w !== 'or');
-  return vals.length ? vals : null;
-}
-
 /** 把想要的档位落到该模型支持的档位上：在列表里就用它，否则取最接近的 */
 export function nearestLevel(want, levels) {
   if (!levels?.length) return want;
