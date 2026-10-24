@@ -21,7 +21,7 @@
 | Windows (x64) | `workbuddy-relay-<版本>-win.zip` → 双击 `WorkBuddy-Relay-Import.exe` |
 | Mac（Apple 芯片 M1/M2/M3/M4） | `workbuddy-relay-<版本>-mac-arm64.zip` → 双击 `WorkBuddy-Relay-Import` |
 | Mac（Intel） | `workbuddy-relay-<版本>-mac-x64.zip` → 双击 `WorkBuddy-Relay-Import` |
-| 图文使用手册 | `workbuddy-relay使用手册-v<版本>-<日期>.pdf` / `.html` |
+| 图文使用手册 | `workbuddy-relay-manual-v<版本>-<日期>.pdf` / `.html`（页面显示名为《workbuddy-relay使用手册》） |
 
 前提：本机已安装 WorkBuddy。程序未做商业签名：Windows 若出现 SmartScreen 提示，点「更多信息 → 仍要运行」；Mac 若提示「无法验证开发者」，到「系统设置 → 隐私与安全性」点「仍要打开」。
 
