@@ -1,4 +1,4 @@
-WorkBuddy 中转站一键导入工具  v2.2.3（Windows）
+WorkBuddy 中转站一键导入工具  v2.3.0（Windows）
 ==============================================
 
 作用：把 new-api / sub2api 中转站的地址和 API Key 一键导入 WorkBuddy 的

@@ -138,7 +138,7 @@ footer{color:var(--m);font-size:12px;text-align:center;padding:12px 0 32px}
 </main>
 <script>
 const T='__WB_TOKEN__';const $=(id)=>document.getElementById(id);let EFF=[],mode='pat',keyChoice=null,models=[];
-const LBL={auto:'自动',off:'关闭',minimal:'最低',low:'低',medium:'中',high:'高',xhigh:'超高',max:'极致'};
+const LBL={auto:'自动',off:'关闭',low:'低',medium:'中',high:'高',xhigh:'超高',max:'极致'};
 async function api(p,b){const r=await fetch(p,{method:b?'POST':'GET',headers:{'X-WB-Token':T,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({error:'本地服务已关闭'}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
 function msg(id,t,c){const e=$(id);e.className='msg '+(c||'');e.textContent=t||''}
 function busy(btn,on,txt){if(on){btn.dataset.t=btn.textContent;btn.innerHTML='<span class="spin"></span>'+(txt||'处理中…');btn.disabled=true}else{btn.textContent=btn.dataset.t||btn.textContent;btn.disabled=false}}

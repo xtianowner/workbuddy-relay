@@ -37,14 +37,15 @@ test('models.json 思考字段（与 WorkBuddy 本地模型写入格式一致）
 
 import { nearestLevel, probeLevels, WB_LEVELS, EFFORTS } from '../lib/wb-reasoning.mjs';
 
-test('EFFORTS 覆盖 WorkBuddy 的 6 档', () => {
-  assert.deepEqual(WB_LEVELS, ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
+test('EFFORTS = WorkBuddy 选择器能显示的 5 档，不含 minimal', () => {
+  assert.deepEqual(WB_LEVELS, ['low', 'medium', 'high', 'xhigh', 'max']);
   for (const v of WB_LEVELS) assert.ok(EFFORTS.includes(v));
+  assert.ok(!EFFORTS.includes('minimal'));
 });
 
 test('nearestLevel', () => {
   assert.equal(nearestLevel('medium', ['low', 'medium', 'high']), 'medium');
-  assert.equal(nearestLevel('minimal', ['low', 'medium', 'high', 'xhigh', 'max']), 'low');
+  assert.equal(nearestLevel('low', ['medium', 'high', 'xhigh', 'max']), 'medium');
   assert.equal(nearestLevel('max', ['low', 'medium', 'high']), 'high');
 });
 
