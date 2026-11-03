@@ -1,6 +1,6 @@
 <!-- purpose: WorkBuddy 本地模型导入工具的下载、运行、构建与验证说明。 -->
 - 创建时间：2026-10-24 00:00:00
-- 更新时间：2026-11-03 10:15:00
+- 更新时间：2026-11-03 10:44:46
 - 时区：Asia/Shanghai
 
 # WorkBuddy 快捷配置 · v2.5.1
@@ -13,9 +13,10 @@
 
 | 系统 | 文件与入口 |
 |---|---|
-| Windows x64 | `workbuddy-relay-2.5.1-win.zip`，解压后双击 `WorkBuddy-Relay-Import.exe` |
-| Apple 芯片 Mac | `workbuddy-relay-2.5.1-mac-arm64.zip`，解压后双击 `WorkBuddy-Relay-Import` |
-| 源码 | `workbuddy-relay-2.5.1.zip`，解压后运行系统对应的双击入口 |
+| Windows x64 | `WorkBuddy-Relay-Import-windows-x64.exe`，直接运行 |
+| Apple 芯片 Mac | `WorkBuddy-Relay-Import-mac-arm64`，单个可执行文件 |
+
+每个平台只下载一个文件即可。GitHub 自动生成的 `Source code` 入口供开发者使用。Mac 浏览器下载可能不保留执行权限，需在下载目录执行 `chmod +x WorkBuddy-Relay-Import-mac-arm64` 后打开。
 
 先安装 [WorkBuddy](https://www.workbuddy.cn/)。独立程序内置运行时，无需安装 Node；源码入口可借用 WorkBuddy 自带的 Electron。Mac 程序使用 ad-hoc 签名，首次运行可能需要在「系统设置 → 隐私与安全性」允许打开。
 
