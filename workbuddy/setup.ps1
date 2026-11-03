@@ -58,6 +58,46 @@ foreach ($hive in @('HKLM:', 'HKCU:')) {
   } catch { }
 }
 
+# WorkBuddy may be installed to a custom drive (for example D:\workbuddy).
+# The installer writes its location under the normal uninstall registry keys;
+# this works for both domestic and international builds because the match is
+# based on the executable/product name, not a locale-specific display string.
+foreach ($keyRoot in @(
+  'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+  'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'
+)) {
+  try {
+    Get-ChildItem -LiteralPath $keyRoot -ErrorAction SilentlyContinue | ForEach-Object {
+      try {
+        $item = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction Stop
+        $label = [string]$item.DisplayName
+        if ($label -notmatch '(?i)workbuddy') { return }
+        $icon = [string]$item.DisplayIcon
+        if ($icon) {
+          $icon = ($icon -replace '^"', '') -replace '"(?:,\d+)?$', '' -replace ',\d+$', ''
+          if ($icon -match '(?i)\.exe$') { $candidates += $icon }
+        }
+        $location = [string]$item.InstallLocation
+        if ($location) { $candidates += (Join-Path $location 'WorkBuddy.exe') }
+      } catch { }
+    }
+  } catch { }
+}
+
+# A running process is the strongest signal and also covers portable/custom
+# installs that do not register an uninstall entry.
+try {
+  Get-CimInstance Win32_Process -Filter "Name = 'WorkBuddy.exe'" -ErrorAction SilentlyContinue |
+    ForEach-Object { if ($_.ExecutablePath) { $candidates += $_.ExecutablePath } }
+} catch {
+  try {
+    Get-Process -Name WorkBuddy -ErrorAction SilentlyContinue | ForEach-Object {
+      try { if ($_.Path) { $candidates += $_.Path } } catch { }
+    }
+  } catch { }
+}
+
 $exe = $null
 foreach ($c in $candidates) {
   if ($c -and (Test-Path -LiteralPath $c)) { $exe = (Resolve-Path -LiteralPath $c).Path; break }

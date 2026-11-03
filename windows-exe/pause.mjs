@@ -1,6 +1,6 @@
 // 双击运行的 exe：退出前停住窗口，让用户看到结果（仅无参数启动时）
 import fs from 'node:fs';
-if (process.pkg && process.platform === 'win32' && process.argv.length <= 2) {
+if ((process.pkg || process.versions.sea) && process.platform === 'win32' && process.argv.length <= 2) {
   const realExit = process.exit.bind(process);
   let done = false;
   const hold = () => {

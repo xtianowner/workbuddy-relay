@@ -2,6 +2,8 @@
 # 打包纯本地发行 zip（不含 legacy/、test/、设计文档）
 set -eu
 cd "$(dirname "$0")"
+node configure-build.mjs
+node workbuddy/lib/build-page.mjs
 V=$(node -p "require('fs').readFileSync('workbuddy/lib/wb-core.mjs','utf8').match(/VERSION = '([^']+)'/)[1]")
 OUT="$PWD/dist"; NAME="workbuddy-relay-$V"; STAGE=$(mktemp -d)
 mkdir -p "$STAGE/$NAME/workbuddy/lib" "$OUT"

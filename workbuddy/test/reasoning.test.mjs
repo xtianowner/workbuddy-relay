@@ -60,7 +60,7 @@ test('probeLevels: 无效值报错列出的是全局枚举，必须逐档实测�
 
 test('probeLevels: 被拒但不列出 → 逐档试', async () => {
   const okSet = new Set(['low', 'medium', 'high', 'none']);
-  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv((b) => (okSet.has(b.reasoning_effort) ? [200, { choices: [{ message: { content: 'x' } }] }] : [400, { error: { message: 'bad' } }])) });
+  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv((b) => (okSet.has(b.reasoning_effort) ? [200, { choices: [{ message: { content: 'x' } }] }] : [400, { error: { message: 'Unsupported value for reasoning_effort' } }])) });
   assert.deepEqual(r, { levels: ['low', 'medium', 'high'], canDisable: true, how: 'each' });
 });
 
@@ -72,4 +72,29 @@ test('probeLevels: 中转站忽略参数 → null（保守默认）', async () =
 test('reasoningFields 写入实测档位与 canDisableThinking', () => {
   assert.deepEqual(reasoningFields('medium', 'openai', ['low', 'medium', 'high', 'xhigh', 'max'], false),
     { supportsReasoning: true, reasoning: { defaultEffort: 'medium', supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'], canDisableThinking: false } });
+});
+
+test('HTTP 500 的中档和关闭档保持未知，并重试一次', async () => {
+  const counts = {};
+  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv(b => {
+    const v = b.reasoning_effort; counts[v] = (counts[v] || 0) + 1;
+    if (v === 'wb_probe_invalid') return [400, {error:{message:'Invalid reasoning_effort'}}];
+    if (['medium', 'none'].includes(v)) return [500, {error:{message:'upstream failed'}}];
+    return [200, {choices:[{message:{content:'ok'}}]}];
+  }) });
+  assert.equal(r.how, 'partial');
+  assert.deepEqual(r.unknown, ['medium', 'none']);
+  assert.equal(r.canDisable, null);
+  assert.equal(counts.medium, 2);
+});
+
+test('思考探测区分明确拒绝、HTTP 500、通用 HTTP 400 和超时', async () => {
+  for (const status of [400, 401, 429, 500]) {
+    const r = await probeReasoning('http://x/v1','k','m','medium',{fetchImpl:fake(()=>[status,{error:{message:'upstream failed'}}])});
+    assert.equal(r.uncertain,true);
+  }
+  const rejected = await probeReasoning('http://x/v1','k','m','medium',{fetchImpl:fake(()=>[400,{error:{message:'reasoning_effort not supported'}}])});
+  assert.equal(rejected.uncertain,false);
+  const timed = await probeReasoning('http://x/v1','k','m','medium',{timeoutMs:1,fetchImpl:async (url,init)=>new Promise((resolve,reject)=>init.signal.addEventListener('abort',()=>reject(Object.assign(new Error(),{name:'AbortError'}))))});
+  assert.equal(timed.uncertain,true);
 });

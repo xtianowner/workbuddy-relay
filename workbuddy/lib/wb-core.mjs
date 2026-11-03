@@ -12,8 +12,9 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { getLogger, loggedFetch } from './wb-logs.mjs';
 
-export const VERSION = '2.3.0';
+export const VERSION = '2.5.1';
 export const DEFAULT_INPUT_TOKENS = 200000;
 export const DEFAULT_OUTPUT_TOKENS = 8192;
 const UA = `wb-setup/${VERSION}`;
@@ -72,13 +73,15 @@ export async function mapLimit(items, limit, fn) {
 }
 
 /** 拉模型列表，兼容 {data:[{id}]} / {models:[{id}]} / {models:["id"]} / ["id"]（New API / One API 均为第一种） */
-export async function discoverModels(base, key, timeoutMs = 15000) {
+export async function discoverModels(base, key, timeoutMs = 15000, { fetchImpl = fetch, logger = getLogger(VERSION), operationId } = {}) {
+  logger.addSecret(key);
+  const request = loggedFetch(fetchImpl, logger, operationId);
   const tried = [];
   for (const b of candidates(base)) {
     const url = `${b}/models`;
     tried.push(url);
     try {
-      const res = await withTimeout(fetch(url, { headers: authHeaders(key) }), timeoutMs, 'GET /models');
+      const res = await request(url, { headers: authHeaders(key), signal: AbortSignal.timeout(timeoutMs) });
       const text = await res.text();
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
@@ -90,7 +93,7 @@ export async function discoverModels(base, key, timeoutMs = 15000) {
       try { json = JSON.parse(text); } catch { continue; }
       const ids = extractIds(json);
       if (ids.length) return { base: b, ids, tried };
-    } catch { /* 换下一个候选 */ }
+    } catch (error) { logger.record('models.discovery.failed', { error }, 'error', operationId); }
   }
   return { fatal: '无法从 /models 获取模型列表（该站点可能未实现此接口）', tried };
 }
@@ -103,11 +106,12 @@ export function extractIds(json) {
 }
 
 /** 一次极小请求：同时验证 Key、端点路径、模型可用性 */
-export async function probe(base, key, model, timeoutMs = 12000) {
+export async function probe(base, key, model, timeoutMs = 30000, { fetchImpl = fetch, logger = getLogger(VERSION), operationId } = {}) {
+  logger.addSecret(key);
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await fetch(`${base}/chat/completions`, {
+    const res = await loggedFetch(fetchImpl, logger, operationId)(`${base}/chat/completions`, {
       method: 'POST',
       headers: authHeaders(key),
       signal: ctrl.signal,
@@ -155,8 +159,11 @@ export function readConfig(file) {
   try {
     const raw = fs.readFileSync(file, 'utf8').trim();
     if (!raw) return { shape: 'array', models: [], availableModels: undefined };
-    const json = JSON.parse(raw);
+    let json;
+    try { json = JSON.parse(raw); }
+    catch { throw Object.assign(new Error('配置文件不是合法 JSON，请从备份恢复或修复后重试'), { code: 'CONFIG_PARSE_FAILED' }); }
     if (Array.isArray(json)) return { shape: 'array', models: json, availableModels: undefined };
+    if (!json || typeof json !== 'object' || (json.models !== undefined && !Array.isArray(json.models))) throw Object.assign(new Error('配置文件的 models 必须是数组'), { code: 'CONFIG_SHAPE_FAILED' });
     return {
       shape: 'object',
       models: Array.isArray(json.models) ? json.models : [],
@@ -165,7 +172,8 @@ export function readConfig(file) {
     };
   } catch (e) {
     if (e.code === 'ENOENT') return { shape: 'array', models: [], availableModels: undefined };
-    throw new Error(`现有 ${file} 不是合法 JSON，先修好再导入：${e.message}`);
+    if (e.code?.startsWith('CONFIG_')) throw e;
+    throw Object.assign(new Error(`无法读取 WorkBuddy 配置 ${file}：${e.code || e.name}`), { code: e.code || 'CONFIG_READ_FAILED', cause: e });
   }
 }
 
@@ -224,12 +232,15 @@ export function backupName(file, now = new Date()) {
   return `${file}.bak.${stamp}`.replace(/[. ]+$/, '');
 }
 
-export function writeConfig(file, cfg, models, availableModels) {
+export function writeConfig(file, cfg, models, availableModels, { logger = getLogger(VERSION), operationId } = {}) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   let backup = null;
   if (fs.existsSync(file)) {
     backup = backupName(file);
-    fs.copyFileSync(file, backup);
+    if (fs.existsSync(backup)) backup += `-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+    logger.record('config.backup.started', { file, backup }, 'info', operationId);
+    fs.copyFileSync(file, backup, fs.constants.COPYFILE_EXCL);
+    logger.record('config.backup.completed', { backup }, 'info', operationId);
   }
   const payload = cfg.shape === 'array'
     ? models
@@ -237,7 +248,7 @@ export function writeConfig(file, cfg, models, availableModels) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
 
   if (process.platform === 'win32') {
-    writeWithRetry(file, body);
+    writeWithRetry(file, body, 6, (attempt, code) => logger.record('config.write.retry', { attempt, code }, 'warn', operationId));
   } else {
     const tmp = `${file}.writing`;
     fs.writeFileSync(tmp, body, { mode: 0o600 });
@@ -247,13 +258,14 @@ export function writeConfig(file, cfg, models, availableModels) {
   return { backup };
 }
 
-function writeWithRetry(file, body, attempts = 6) {
+function writeWithRetry(file, body, attempts = 6, onRetry = () => {}) {
   for (let i = 0; i < attempts; i++) {
     try {
       fs.writeFileSync(file, body);
       return;
     } catch (e) {
       if (!['EBUSY', 'EPERM', 'EACCES'].includes(e.code) || i === attempts - 1) throw e;
+      onRetry(i + 1, e.code);
       const until = Date.now() + 150;
       while (Date.now() < until) { /* 短暂等待，避开杀软/索引占用 */ }
     }

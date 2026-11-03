@@ -7,6 +7,9 @@
  *   node wb-import.mjs --stdin-json < payload.json
  */
 import fs from 'node:fs';
+import crypto from 'node:crypto';
+import { PLATFORM_BASE } from './lib/wb-brand.mjs';
+import { getLogger } from './lib/wb-logs.mjs';
 import {
   VERSION, normalizeBase, candidates, discoverModels, probe, resolveBaseByProbe, mapLimit,
   readConfig, mergeModels, buildEntry, writeConfig, defaultConfigPath, pickChatModels, maskKey,
@@ -26,12 +29,14 @@ const args = (() => {
   return out;
 })();
 
-const die = (m) => { console.error(`\n✗ ${m}\n`); process.exit(1); };
-const log = (m) => console.log(`· ${m}`);
+const logger = getLogger(VERSION), operationId = crypto.randomUUID();
+const die = (m) => { logger.record('import.failed', { message: m }, 'error', operationId); console.error(`\n✗ ${logger.sanitize(m)}\n操作编号：${operationId}\n`); process.exit(1); };
+const log = (m) => { logger.record('cli.progress', { message: m }, 'info', operationId); console.log(`· ${m}`); };
 
 if (args.help || args.h) {
   console.log(`wb-import ${VERSION}
-  --url <base> --key <sk>   中转站地址与 Key
+  --key <sk>               SmarAgents API Key（默认固定平台）
+  --url <base>             开源开发接口：覆盖平台地址
   --models a,b,c            手动指定模型
   --config <path>           覆盖 models.json 路径
   --available <mode>        union(默认) | none | replace
@@ -53,8 +58,9 @@ async function main() {
     key = key || j.key || j.apiKey || j.api_key;
     if (!modelsArg && Array.isArray(j.models)) modelsArg = j.models.join(',');
   }
-  if (!url) die('缺少 --url');
+  url ||= PLATFORM_BASE;
   if (!key) die('缺少 --key');
+  logger.addSecret(key);
 
   const base0 = normalizeBase(url);
   if (!base0) die('--url 不合法');
@@ -100,7 +106,9 @@ async function main() {
     vendor: args.vendor || 'Custom', prefix: args.namePrefix || '', owner,
   }));
 
+  logger.record('config.read.started', { file }, 'info', operationId);
   const cfg = readConfig(file);
+  logger.record('config.read.completed', { file, count: cfg.models.length }, 'info', operationId);
   const { models, added, updated, skipped, pruned } = mergeModels(cfg.models, incoming, base, owner, !!args.prune);
   const available = cfg.availableModels ? [...new Set([...cfg.availableModels, ...picked])] : undefined;
 
@@ -115,9 +123,11 @@ async function main() {
   skipped.forEach((s) => console.log(`  ${s}`));
   console.log('');
 
-  if (args.dryRun) { console.log(JSON.stringify(models, null, 2)); log('dry-run，未写入'); return; }
+  if (args.dryRun) { console.log(JSON.stringify(logger.sanitize(models), null, 2)); log('dry-run，未写入'); return; }
 
-  writeConfig(file, cfg, models, available);
+  logger.record('config.write.started', { file, added, updated, skipped, pruned }, 'info', operationId);
+  const { backup } = writeConfig(file, cfg, models, available, { logger, operationId });
+  logger.record('config.write.completed', { file, backup }, 'info', operationId);
   log('已写入，WorkBuddy 约 1 秒内热加载，无需重启。');
 }
 

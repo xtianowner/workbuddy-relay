@@ -26,7 +26,12 @@ export function nearestLevel(want, levels) {
   return [...levels].sort((a, b) => Math.abs(idx(a) - w) - Math.abs(idx(b) - w) || idx(a) - idx(b))[0];
 }
 
-async function effortRequest(base, key, model, effort, fetchImpl, timeoutMs) {
+export function rejectsEffort(status, message) {
+  return [400, 422].includes(status) && /reasoning_effort|reasoning effort|thinking|enable_thinking|supported values|unsupported value/i.test(message)
+    && /unsupported|not supported|invalid|unrecognized|unknown|not allowed|supported values/i.test(message);
+}
+
+async function effortRequest(base, key, model, effort, fetchImpl, timeoutMs, retry = true) {
   const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     const tok = usesCompletionTokens(model) ? { max_completion_tokens: 16 } : { max_tokens: 16 };
@@ -38,8 +43,9 @@ async function effortRequest(base, key, model, effort, fetchImpl, timeoutMs) {
     const text = await res.text();
     let msg = ''; try { const j = JSON.parse(text); msg = j?.error?.message || j?.message || ''; } catch { /* 非 JSON */ }
     const ok = res.ok && checkReasoningResponse(res.headers.get('content-type'), text).ok;
+    if (retry && (res.status === 429 || res.status >= 500)) return await effortRequest(base, key, model, effort, fetchImpl, timeoutMs, false);
     return { ok, status: res.status, msg: String(msg) };
-  } catch (e) { return { ok: false, status: 0, msg: e.name === 'AbortError' ? '超时' : String(e.message) }; }
+  } catch (e) { if (retry) return await effortRequest(base, key, model, effort, fetchImpl, timeoutMs, false); return { ok: false, status: 0, msg: e.name === 'AbortError' ? '超时' : String(e.message) }; }
   finally { clearTimeout(t); }
 }
 
@@ -50,15 +56,16 @@ async function effortRequest(base, key, model, effort, fetchImpl, timeoutMs) {
  *  注意：对不存在取值的报错列出的是全局枚举，不是该模型支持的档位（smaragents 实测），所以不能只看那条报错。
  * 返回 { levels: string[]|null, canDisable: boolean|null, how }
  */
-export async function probeLevels(base, key, model, { fetchImpl = fetch, timeoutMs = 20000 } = {}) {
+export async function probeLevels(base, key, model, { fetchImpl = fetch, timeoutMs = 60000 } = {}) {
   const r = await effortRequest(base, key, model, 'wb_probe_invalid', fetchImpl, timeoutMs);
   if (r.ok) return { levels: null, canDisable: null, how: 'ignored' };
-  if (r.status === 0 || r.status === 429 || r.status >= 500) return { levels: null, canDisable: null, how: 'error' };
+  if (!rejectsEffort(r.status, r.msg)) return { levels: null, canDisable: null, how: 'error' };
   const tries = await Promise.all([...WB_LEVELS, 'none'].map(async (v) => [v, await effortRequest(base, key, model, v, fetchImpl, timeoutMs)]));
   const okSet = new Set(tries.filter(([, t]) => t.ok).map(([v]) => v));
-  const flaky = tries.some(([, t]) => !t.ok && (t.status === 0 || t.status === 429 || t.status >= 500));
+  const unknown = tries.filter(([, t]) => !t.ok && !rejectsEffort(t.status, t.msg)).map(([v]) => v);
+  const flaky = unknown.length > 0;
   const levels = WB_LEVELS.filter((v) => okSet.has(v));
-  return { levels: levels.length ? levels : null, canDisable: okSet.has('none'), how: flaky ? 'partial' : 'each' };
+  return { levels: levels.length ? levels : null, canDisable: unknown.includes('none') ? null : okSet.has('none'), how: flaky ? 'partial' : 'each', ...(flaky ? { unknown } : {}) };
 }
 
 export function familyOf(id) {
@@ -111,14 +118,16 @@ export function checkReasoningResponse(contentType, text) {
 }
 
 /** 对一个模型做思考强度探测；返回 { ok, format, confirmed } 或 { ok:false, reason } */
-export async function probeReasoning(base, key, model, effort, { fetchImpl = fetch, timeoutMs = 30000 } = {}) {
+export async function probeReasoning(base, key, model, effort, { fetchImpl = fetch, timeoutMs = 60000 } = {}) {
   if (!effort || effort === 'off') return { ok: true, format: null, confirmed: false, skipped: true };
   if (effort === 'auto') effort = 'medium';
-  let last = '';
+  let last = '', uncertain = false;
   for (const f of formatsFor(model)) {
     const ctrl = new AbortController(); const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
-      const tok = usesCompletionTokens(model) ? { max_completion_tokens: 2048 } : { max_tokens: 2048 };
+      // We only validate choices/reasoning metadata; a large completion budget
+      // makes slow reasoning models look unavailable during import.
+      const tok = usesCompletionTokens(model) ? { max_completion_tokens: 128 } : { max_tokens: 128 };
       const res = await fetchImpl(`${base}/chat/completions`, {
         method: 'POST', signal: ctrl.signal,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
@@ -129,14 +138,16 @@ export async function probeReasoning(base, key, model, effort, { fetchImpl = fet
         const r = checkReasoningResponse(res.headers.get('content-type'), text);
         if (r.ok) return { ok: true, format: f.fmt, confirmed: r.confirmed };
         last = r.reason;
+        uncertain = true;
       } else {
         let m = ''; try { m = JSON.parse(text)?.error?.message || JSON.parse(text)?.message || ''; } catch { m = text.slice(0, 80); }
         last = `HTTP ${res.status}${m ? `：${String(m).slice(0, 100)}` : ''}`;
+        if (!rejectsEffort(res.status, String(m))) uncertain = true;
       }
-    } catch (e) { last = e.name === 'AbortError' ? '超时' : String(e.message).slice(0, 100); }
+    } catch (e) { uncertain = true; last = e.name === 'AbortError' ? '超时' : String(e.message).slice(0, 100); }
     finally { clearTimeout(t); }
   }
-  return { ok: false, reason: last };
+  return { ok: false, reason: last, uncertain };
 }
 
 /** 生成写进 models.json 的思考相关字段 */

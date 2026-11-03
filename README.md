@@ -1,95 +1,71 @@
-# workbuddy-relay
+<!-- purpose: WorkBuddy 本地模型导入工具的下载、运行、构建与验证说明。 -->
+- 创建时间：2026-10-24 00:00:00
+- 更新时间：2026-11-03 10:15:00
+- 时区：Asia/Shanghai
 
-把 [new-api](https://github.com/QuantumNous/new-api) / [sub2api](https://github.com/Wei-Shaw/sub2api) 中转站的地址和 API Key 一键导入 [WorkBuddy](https://www.workbuddy.cn/) 的自定义模型配置（`~/.workbuddy/models.json`）。
+# WorkBuddy 快捷配置 · v2.5.1
 
-纯本地小工具：不需要部署，不需要改动中转站，只调用平台已有的用户侧接口；不需要装 Node（借用 WorkBuddy 自带的 Electron 运行）。
+在本地网页填写 API Key、选择模型和思考强度，将配置写入 WorkBuddy。网页使用构建时预设的 API 服务地址；开发者可在构建前修改 `.env` 中的 `WB_API_BASE_URL`，缺少 `.env` 时使用 `.env.example`。
 
-## 功能
+## 下载与运行
 
-- 双击后自动在浏览器打开本地导入页面，全程网页填写，不用在终端里输入
-- 输入站点地址，自动识别 new-api / sub2api
-- 用平台令牌列出你已有的 Key 选择，或新建一个；也可以直接粘贴 `sk-` Key
-- 列出聊天模型，勾选要导入的，并给**每个模型选思考强度**（默认「自动（实测）」：每个模型逐档发几个小请求，查出它在该中转站实际支持的档位——低/中/高/超高/极致中的哪些、能否关闭思考——按「中」导入；不支持思考就关闭；也可手动改成关闭/低/中/高/超高/极致）
-- 导入前逐个探测：模型不可用不导入；思考参数被中转站拒绝的自动降级为不带思考，并在页面说明原因；DeepSeek / Qwen / GLM 会自动尝试其专用思考格式
-- 写入 WorkBuddy，WorkBuddy 运行中会热加载，无需重启；导入的模型在 WorkBuddy 里可切换思考强度
-- 自动清理本工具旧版本写入的同站点失效条目
-- 本地页面只监听 127.0.0.1 的随机端口，带一次性口令，并校验 Host / Origin，其他网页调用不了
-- 平台令牌只在内存里用，不落盘、不写日志
+从 [Releases](https://github.com/xtianowner/workbuddy-relay/releases/latest) 下载：
 
-## 下载（推荐普通用户）
-
-到 [Releases](https://github.com/xtianowner/workbuddy-relay/releases/latest) 下载对应的包，解压后双击即可，不需要装 Node：
-
-| 你的电脑 | 下载 |
+| 系统 | 文件与入口 |
 |---|---|
-| Windows (x64) | `workbuddy-relay-<版本>-win.zip` → 双击 `WorkBuddy-Relay-Import.exe` |
-| Mac（Apple 芯片 M1/M2/M3/M4） | `workbuddy-relay-<版本>-mac-arm64.zip` → 双击 `WorkBuddy-Relay-Import` |
-| Mac（Intel） | `workbuddy-relay-<版本>-mac-x64.zip` → 双击 `WorkBuddy-Relay-Import` |
-| 图文使用手册 | `workbuddy-relay-manual-v<版本>-<日期>.pdf` / `.html`（页面显示名为《workbuddy-relay使用手册》） |
+| Windows x64 | `workbuddy-relay-2.5.1-win.zip`，解压后双击 `WorkBuddy-Relay-Import.exe` |
+| Apple 芯片 Mac | `workbuddy-relay-2.5.1-mac-arm64.zip`，解压后双击 `WorkBuddy-Relay-Import` |
+| 源码 | `workbuddy-relay-2.5.1.zip`，解压后运行系统对应的双击入口 |
 
-前提：本机已安装 WorkBuddy。程序未做商业签名：Windows 若出现 SmartScreen 提示，点「更多信息 → 仍要运行」；Mac 若提示「无法验证开发者」，到「系统设置 → 隐私与安全性」点「仍要打开」。
+先安装 [WorkBuddy](https://www.workbuddy.cn/)。独立程序内置运行时，无需安装 Node；源码入口可借用 WorkBuddy 自带的 Electron。Mac 程序使用 ad-hoc 签名，首次运行可能需要在「系统设置 → 隐私与安全性」允许打开。
 
-> ⚠️ macOS 包为 Linux 交叉编译 + ad-hoc 签名，**尚未在真 Mac 上实测**；Windows exe 已在 wine 下运行验证，尚未在真 Windows 上实测。遇到问题请提 [Issue](https://github.com/xtianowner/workbuddy-relay/issues)。
+填写 Key → 读取模型 → 勾选模型与思考强度 → 导入 → 完成后关闭工具。工具只监听本机回环地址，浏览器/API 使用随机会话口令。导入时最多并发检测 **5 个模型**，逐行显示进度；服务限流、超时或临时错误不会直接判定模型不支持思考。请求接受了思考参数不等于已确认不同档位的实际效果。
 
-双击后会自动打开浏览器页面：填站点地址 → 选「用平台令牌自动获取」或「直接粘贴 Key」→ 选 Key → 勾选模型、选思考强度 → 点「导入到 WorkBuddy」→ 看结果后点「完成，关闭本工具」。然后在 WorkBuddy 模型选择器的「自定义 / Custom」分组里使用。
+同站点模型可更新，同名跨站点模型保留原配置并提示跳过。写入前创建备份，写入后回读校验；API Key 会保存在 WorkBuddy 的 `models.json`，该文件权限设为 600。
 
-## 思考强度写到哪里
+## 日志
 
-导入的模型在 `models.json` 里按 WorkBuddy 自己写本地模型的格式写入（依据 WorkBuddy 安装包内的实现，见 DESIGN.md）：
+页面底部可导出本机脱敏日志 ZIP。日志记录操作、耗时、HTTP 状态、模型名和错误码，不记录 API Key、平台令牌、请求/响应正文、聊天内容或配置副本，导出不会自动上传。
 
-```json
-{ "supportsReasoning": true,
-  "reasoning": { "defaultEffort": "medium", "supportedEfforts": ["low", "medium", "high", "xhigh", "max"], "canDisableThinking": false },
-  "compat": { "thinkingFormat": "deepseek" } }
-```
+- Windows：`%LOCALAPPDATA%\SmarAgents\WorkBuddyRelay\logs`
+- macOS：`~/Library/Logs/SmarAgents/WorkBuddyRelay/logs`
+- Linux：`~/.local/state/SmarAgents/WorkBuddyRelay/logs`
 
-`supportedEfforts` / `canDisableThinking` 按实测写入（例如 smaragents 上的 gpt-6 是低~极致、不能关闭思考）；中转站忽略思考参数、档位无法区分时保守写低/中/高。`compat` 只在中转站不认 OpenAI 的 `reasoning_effort`、但认 DeepSeek / Qwen / GLM 专用格式时才写；选「关闭」或探测不通过时写 `supportsReasoning: false`。
+默认保留 30 天、最多 100 个文件或 40 MB。CLI 可用 `--export-logs <zip路径>` 导出。
 
-平台令牌：
+## 开发与构建
 
-- **new-api**：个人设置 → 访问令牌 → 新建，勾选 `api_key:read`、`api_key:reveal`、`api_key:write`，复制 `nap_` 开头的令牌
-- **sub2api**：推荐直接在「API 密钥」页复制 Key，选「粘贴」
-
-## 从源码运行（开发者 / 不想用二进制）
-
-本仓库就是全部源码（MIT）。克隆或下载源码后双击 `macOS-双击导入.command` / `Windows-双击导入.bat`（借用 WorkBuddy 自带的 Electron 运行，无需装 Node，同样打开网页），或 `node workbuddy/wb-setup.mjs`。
-
-开发者可用命令行参数跳过网页：`node workbuddy/wb-setup.mjs --url https://relay.example.com --key sk-… --effort auto`（`--effort auto|off|low|medium|high`），`--interactive` 进入终端问答式引导，`--help` 查看全部参数。
-
-## 目录
-
-```
-workbuddy/            主程序（wb-setup.mjs 入口，lib/ 核心逻辑与网页 wb-page.html（改后运行 node lib/build-page.mjs），setup.sh / setup.ps1 启动脚本）
-workbuddy/test/       单元测试与端到端测试（mock 中转站）
-windows-exe/          单文件可执行程序的打包配置（Windows / macOS 共用）
-mac/                  macOS 包附带的 README
-manual/               用户手册源文件、截图、章节目录、缺图清单
-build-release.sh      一键构建全部 Release 资产到 dist/
-legacy/               已废弃的网页版，仅供参考
-DESIGN.md             设计说明与平台接口事实
-AGENTS.md             给 AI 编程助手看的开发约定
-build-zip.sh          打用户发行 zip（输出到 dist/）
-```
-
-## 开发
+需要 Node 20+、npm，Mac 二进制签名使用系统 `codesign`。配置说明见 [BUILD-CONFIG.md](BUILD-CONFIG.md)。
 
 ```bash
-cd workbuddy
-node --test test/*.test.mjs          # 单元测试（不要写成 test/，会把 e2e mock 服务器挂起）
-python3 test/e2e/run-e2e.py          # 命令行/终端引导端到端测试（需要 python3，Linux/macOS）
-python3 test/e2e/web-e2e.py          # 网页模式端到端测试（需要 python3 + playwright + chromium）
-# 两个 e2e 都支持 WB_E2E_CMD=<打包后的程序> 来测试成品
+node configure-build.mjs
+node workbuddy/lib/build-page.mjs
+node --test workbuddy/test/*.test.mjs
+node workbuddy/wb-setup.mjs
 ```
 
-打用户 zip：`bash build-zip.sh` → `dist/workbuddy-relay-<版本>.zip`
-
-### 构建 Release 资产
+源码发行包：`bash build-zip.sh`。Mac arm64 成品：
 
 ```bash
-bash build-release.sh    # → dist/：win.zip、mac-arm64.zip、mac-x64.zip、使用手册 .html/.pdf
+cd windows-exe
+npm ci
+npm run bundle
+npx pkg out/wb.cjs -t node20-macos-arm64 -C GZip -o out/WorkBuddy-Relay-Import
+codesign --force --sign - out/WorkBuddy-Relay-Import
+out/WorkBuddy-Relay-Import --version
 ```
 
-esbuild 打包 + [@yao-pkg/pkg](https://github.com/yao-pkg/pkg) 生成单文件程序（内置 Node 运行时，代码以 V8 字节码形式存放）。在 Linux 上交叉编译 macOS arm64 需要 qemu-aarch64 binfmt，并用 [rcodesign](https://github.com/indygreg/apple-platform-rs) 做 ad-hoc 签名；在 Mac 上会改用 `codesign --sign -`。只打手册：`bash manual/build-manual.sh`。
+Windows SEA 构建：`powershell -ExecutionPolicy Bypass -File build-windows.ps1`。API Key 在运行时输入，不写进构建配置。开发者 CLI 保留 `--url`、`--platform-token`、`--key-id`，完整参数见 `--help`。
+
+## 本版验证范围
+
+2026-11-03 在 Apple M1 / macOS 15.5 上验证了 36 项自动测试；独立 arm64 成品通过版本、签名、模拟 API 导入、重复更新、配置备份、600 权限、日志 ZIP 脱敏和网页鉴权检查。源码测试使用官方 WorkBuddy 5.9.3 自带的 Node 22.21.1；独立成品无需 Node。Linux arm64 兼容性门禁通过。
+
+真实付费模型调用、WorkBuddy 登录后模型选择与聊天、Intel Mac 本版成品尚未验证。Windows EXE 使用随 2.5.1 更新包提供的原件，本轮未重新测试 Windows；源码与 Mac 额外修复了进度恢复失败后的界面锁定和退出失败提示，Windows 原件尚未包含这两项页面修正。
+
+当前会话的浏览器自动化入口不可用，未完成本版页面真渲染与窄屏验收。
+
+`workbuddy/test/e2e/` 中的旧交互脚本面向 2.3.0 的站点选择流程；2.5.1 当前回归入口为上面的 `node --test workbuddy/test/*.test.mjs`，其中 `web.test.mjs` 覆盖异步导入 API、进度、跨站保留、备份和脱敏日志。
 
 ## License
 

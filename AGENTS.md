@@ -5,13 +5,19 @@ tags: [workbuddy, new-api, sub2api, local-tool]
 scenes: [dev]
 related: [brief-shared-001]
 summary: "WorkBuddy 中转站一键导入（纯本地 zip 工具）的工程说明"
-updated: 2026-10-24
+updated: 2026-11-03
 ---
 
 # AGENTS.md — workbuddy-relay（工程说明）
 
 ## 定位
-纯本地工具，不部署、不联网下载自身代码。用户解压 zip 后双击运行，交互式引导：站点地址 → 识别 new-api / sub2api → 平台令牌自动取 Key 或粘贴 Key → 选或建 Key → 写入 `~/.workbuddy/models.json` → 校验热加载。平台侧不需要做任何改造。
+纯本地工具，不部署、不联网下载自身代码。普通网页入口固定使用 SmarAgents `https://www.smaragents.com/v1`，用户只填写 API Key；开发者参数模式仍兼容 `--url` 与平台令牌。用户解压 zip 后双击运行：填写 Key → 选择模型 → 写入 `~/.workbuddy/models.json` → 校验热加载。平台侧不需要做任何改造。
+
+## 2.4.0 约定
+
+每个 UI 操作、网络状态、模型探测、配置备份/写入/校验和失败阶段写入本地脱敏 JSONL 日志。日志不得包含 Key、令牌、请求/响应正文、聊天内容或配置副本；网页和 CLI 都提供本地 ZIP 导出。Windows 发布包使用 Node SEA 单文件构建：`build-windows.ps1` 或 `windows-exe/build-sea.ps1`。
+
+2.4.1 起网页导入使用后台任务和轮询：`POST /api/import` 立即返回 jobId，`GET /api/import-status?jobId=...` 返回逐模型状态；模型可用性探测最多并发 5 路。基础聊天探测超时 30 秒，以覆盖 SmarAgents 慢响应模型。
 
 ## 目录
 ```

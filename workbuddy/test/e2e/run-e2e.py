@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """端到端：本地 mock new-api / sub2api + 真 TTY 交互（pty）+ 临时 HOME + 模拟 WorkBuddy 热加载缓存"""
 import os, pty, re, sys, time, json, subprocess, tempfile, threading, glob, select
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
@@ -20,9 +22,9 @@ def fake_workbuddy(home, stop):
             m = os.path.getmtime(cfg)
             if m != last:
                 last = m; time.sleep(0.3)
-                data = json.load(open(cfg)); arr = data if isinstance(data, list) else data.get('models', [])
+                data = json.load(open(cfg, encoding="utf-8")); arr = data if isinstance(data, list) else data.get('models', [])
                 os.makedirs(os.path.join(home, '.workbuddy', 'cache'), exist_ok=True)
-                json.dump({'models': [{'id': 'custom-local:' + x['id']} for x in arr]}, open(os.path.join(home, '.workbuddy', 'cache', 'acc-product-config-v3.json'), 'w'))
+                json.dump({'models': [{'id': 'custom-local:' + x['id']} for x in arr]}, open(os.path.join(home, '.workbuddy', 'cache', 'acc-product-config-v3.json'), 'w', encoding='utf-8'))
         except FileNotFoundError: pass
         time.sleep(0.2)
 
@@ -76,11 +78,11 @@ def main():
             home = tempfile.mkdtemp(prefix='wbhome-'); stop = threading.Event()
             if name.startswith('回归'):
                 os.makedirs(os.path.join(home, '.workbuddy'))
-                json.dump([{'id': i, 'url': 'http://127.0.0.1:18082/chat/completions', 'apiKey': 'sk-s2existing11', 'wbImportOwner': 'wb-setup-v1'} for i in ['claude-*', 'gpt-*', 'gpt-5.5']], open(os.path.join(home, '.workbuddy', 'models.json'), 'w'))
+                json.dump([{'id': i, 'url': 'http://127.0.0.1:18082/chat/completions', 'apiKey': 'sk-s2existing11', 'wbImportOwner': 'wb-setup-v1'} for i in ['claude-*', 'gpt-*', 'gpt-5.5']], open(os.path.join(home, '.workbuddy', 'models.json'), 'w', encoding='utf-8'))
             t = threading.Thread(target=fake_workbuddy, args=(home, stop), daemon=True); t.start()
             code, out = session(home, script); stop.set()
             cfg = os.path.join(home, '.workbuddy', 'models.json')
-            data = json.load(open(cfg)) if os.path.exists(cfg) else []
+            data = json.load(open(cfg, encoding="utf-8")) if os.path.exists(cfg) else []
             ids = sorted(m['id'] for m in data)
             ok = code == 0 and ids == ['acme-mind-7', 'claude-sonnet-4', 'deepseek-v3.1', 'gpt-5.5'] and '已接收配置' in out \
                  and reasoning_ok(data) \

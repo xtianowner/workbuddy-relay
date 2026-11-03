@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+const root = new URL('./', import.meta.url);
+const localEnv = new URL('.env', root);
+const env = fs.readFileSync(fs.existsSync(localEnv) ? localEnv : new URL('.env.example', root), 'utf8');
+const match = env.match(/^WB_API_BASE_URL\s*=\s*(.*?)\s*$/m);
+if (!match) throw new Error('.env requires WB_API_BASE_URL');
+const value = match[1].replace(/^['"]|['"]$/g, '');
+const url = new URL(value);
+if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) throw new Error('Invalid WB_API_BASE_URL');
+let base = url.href.replace(/\/+$/, '').replace(/\/chat\/completions$/, '');
+if (!url.pathname.replace(/\/+$/, '')) base += '/v1';
+fs.writeFileSync(new URL('workbuddy/lib/wb-brand.mjs', root), `// Generated from .env before packaging.\nexport const PLATFORM_NAME = 'WorkBuddy';\nexport const PLATFORM_SITE = ${JSON.stringify(url.origin)};\nexport const PLATFORM_BASE = ${JSON.stringify(base)};\n`);
+console.log('Build API configuration generated.');

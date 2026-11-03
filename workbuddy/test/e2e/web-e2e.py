@@ -3,6 +3,8 @@
    SHOTS=<目录> 时顺带截图（给使用手册用）；WB_E2E_CMD=<exe 路径> 可换成打包后的程序。"""
 import os, sys, json, time, tempfile, threading, subprocess, urllib.request, urllib.error
 from playwright.sync_api import sync_playwright
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 HERE = os.path.dirname(os.path.abspath(__file__)); ROOT = os.path.abspath(os.path.join(HERE, '..', '..'))
 src = open(os.path.join(HERE, 'run-e2e.py'), encoding='utf-8').read().split('\ndef session')[0]
 ns = {'__file__': os.path.join(HERE, 'run-e2e.py')}; exec(src, ns)
@@ -15,7 +17,7 @@ def start_tool(home):
     cmd = os.environ.get('WB_E2E_CMD')
     p = subprocess.Popen(([cmd] if cmd else ['node', 'wb-setup.mjs']), cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     for _ in range(int(os.environ.get('WB_START_WAIT', '100'))):
-        if os.path.exists(url_file) and open(url_file).read(): return p, open(url_file).read()
+        if os.path.exists(url_file) and open(url_file, encoding="utf-8").read(): return p, open(url_file, encoding="utf-8").read()
         time.sleep(0.1)
     p.kill(); raise RuntimeError('网页服务没有启动：' + (p.stdout.read() or ''))
 
@@ -54,7 +56,7 @@ def scenario_newapi(b, home):
     pg.click('#b4'); pg.wait_for_selector('.final, #res .msg.err', timeout=60000); shot(pg, 'web-05-result.png', '#c4')
     txt = pg.inner_text('#res')
     results.append(('结果页', '已导入 4 个模型' in txt and '已降级' in txt and '未导入' in txt, txt.replace('\n', ' | ')[:300]))
-    data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json')))}
+    data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json'), encoding='utf-8'))}
     results.append(('models.json 思考字段', set(data) == {'gpt-5.5', 'claude-sonnet-4', 'deepseek-v3.1', 'acme-mind-7'}
         and data['acme-mind-7']['reasoning']['defaultEffort'] == 'medium' and data['acme-mind-7']['supportsReasoning'] is True
         and data['gpt-5.5']['reasoning'] == {'defaultEffort': 'xhigh', 'supportedEfforts': ['low', 'medium', 'high', 'xhigh', 'max'], 'canDisableThinking': False}
@@ -73,7 +75,7 @@ def scenario_sub2api_paste(b, home):
     results.append(('sub2api 自动切到粘贴', pg.is_visible('#key'), ''))
     pg.fill('#key', 'sk-s2existing11'); pg.click('#b2'); pg.wait_for_selector('#mt tr')
     pg.click('#b4'); pg.wait_for_selector('.final', timeout=60000)
-    data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json')))}
+    data = {m['id']: m for m in json.load(open(os.path.join(home, '.workbuddy', 'models.json'), encoding='utf-8'))}
     results.append(('sub2api 导入', data.get('gpt-5.5', {}).get('supportsReasoning') is True and all(m['url'].startswith('http://127.0.0.1:18082/v1') for m in data.values()), sorted(data)))
     pg.click('#bq'); results.append(('退出', p.wait(timeout=10) == 0, ''))
     return results
