@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-04T06:38:16.021616+00:00",
+  "httpMethod": "GET",
+  "source": "GitHub public release URLs",
+  "checks": [
+    {
+      "downloadedFile": "wb-253-public-windows.exe",
+      "bytes": 37839360,
+      "sha256": "92d27206f66323b01000af5ff5aa823510e45b23019c4592f2ed361c46c83ab5",
+      "matched": true
+    },
+    {
+      "downloadedFile": "wb-253-public-macos-arm64",
+      "bytes": 42122624,
+      "sha256": "75743ad3f36291781196af38a028243c812fbaca37fa0671170505d68e335dbd",
+      "matched": true
+    }
+  ],
+  "passed": true
+}
