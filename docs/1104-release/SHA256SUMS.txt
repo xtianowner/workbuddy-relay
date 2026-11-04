@@ -1,0 +1,4 @@
+92d27206f66323b01000af5ff5aa823510e45b23019c4592f2ed361c46c83ab5  WorkBuddy-Relay-Import-windows-x64.exe
+d55d2f4358c7c2988f3b4c855901da3e8326c6da08efe22c297de34077334d74  workbuddy-relay-2.5.3-win.zip
+75743ad3f36291781196af38a028243c812fbaca37fa0671170505d68e335dbd  WorkBuddy-Relay-Import-macos-arm64
+f5ffd4c97b5ccac3731d2ac8a342e1cfcd917e1b72e9768be6fa8c47ccd7fd10  workbuddy-relay-2.5.3-mac-arm64.zip
