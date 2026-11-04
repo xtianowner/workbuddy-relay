@@ -1,0 +1,57 @@
+{
+  "exeBytes": 98979328,
+  "gzipBytes": 36559149,
+  "gzipSeconds": 6.10385979199782,
+  "sections": [
+    {
+      "name": ".text",
+      "rawBytes": 40586240,
+      "offset": 1024
+    },
+    {
+      "name": ".rdata",
+      "rawBytes": 56603136,
+      "offset": 40587264
+    },
+    {
+      "name": ".data",
+      "rawBytes": 283136,
+      "offset": 97190400
+    },
+    {
+      "name": ".pdata",
+      "rawBytes": 906752,
+      "offset": 97473536
+    },
+    {
+      "name": ".fptable",
+      "rawBytes": 512,
+      "offset": 98380288
+    },
+    {
+      "name": ".tls",
+      "rawBytes": 1024,
+      "offset": 98380800
+    },
+    {
+      "name": "_RDATA",
+      "rawBytes": 512,
+      "offset": 98381824
+    },
+    {
+      "name": "malloc_h",
+      "rawBytes": 142848,
+      "offset": 98382336
+    },
+    {
+      "name": ".reloc",
+      "rawBytes": 238592,
+      "offset": 98525184
+    },
+    {
+      "name": ".rsrc",
+      "rawBytes": 215552,
+      "offset": 98763776
+    }
+  ]
+}

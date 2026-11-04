@@ -1,0 +1,13 @@
+{
+  "version": "2.5.3",
+  "checkedAt": "2026-11-04T13:26:55.219539+08:00",
+  "sourceFilesStillMatch": 29,
+  "applicationSHA256": "baa4062f78328c6c317ab057b8264130b7a824c29f820a809c5dd5f2130f6d24",
+  "windowsRuntimeCached": true,
+  "newRuntimeDownload": false,
+  "macosRuntimeChecksPassed": 3,
+  "windowsRuntimeVerification": "not_run",
+  "realConfigurationModified": false,
+  "realModelCalled": false,
+  "published": false
+}

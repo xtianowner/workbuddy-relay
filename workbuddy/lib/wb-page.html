@@ -81,6 +81,7 @@ button:disabled{opacity:.6;cursor:progress}
 @keyframes sh{to{background-position:-200% 0}}
 /* 表格 */
 .tools{padding:8px 10px;border:1px solid var(--bd);border-bottom:0;border-radius:10px 10px 0 0;background:var(--sunk)}
+.protocol-choice-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 0 12px}.protocol-choice-row .lbl{margin:0}.protocol-choice-row select{min-width:190px}.protocol-choice-row .hint{margin:0}
 .cnt{font-size:13px;color:var(--t2);margin-left:4px}
 .tbl{border:1px solid var(--bd);border-radius:0 0 10px 10px;overflow:hidden}
 .tbl.solo{border-radius:10px}
@@ -106,7 +107,7 @@ td.note{color:var(--m);font-size:13px}
 .final .hint{color:var(--t2);margin:6px 0 14px}
 footer{color:var(--m);font-size:12px;text-align:center;padding:12px 0 32px}
 .bye{padding:80px 20px;text-align:center}
-@media (max-width:640px){.steps li span.tx{display:none}.steps li{justify-content:center}.mk{display:none}}
+@media (max-width:640px){.steps li span.tx{display:none}.steps li{justify-content:center}.mk{display:none}.wrap{padding-left:14px;padding-right:14px}.tools{gap:6px;padding:8px}.tools .hint{font-size:12px}#mt{table-layout:fixed}#mt th:first-child,#mt td:first-child{width:38px}#mt th:nth-child(3){width:118px}#mt td{padding:8px 6px}#mt td.id{min-width:0;font-size:12px}#mt select{width:100%;max-width:100%;padding:0 4px;font-size:12px}.capability-note{font-size:11px;line-height:1.35;overflow-wrap:anywhere}#logPath{overflow-wrap:anywhere}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style></head><body>
 <header><div class="wrap"><div class="top"><div><h1>WorkBuddy 快捷配置</h1><p>填写服务 API Key，选择模型，即可导入 WorkBuddy</p></div><span class="status" id="st" role="status">检测中…</span></div>
@@ -118,10 +119,11 @@ footer{color:var(--m);font-size:12px;text-align:center;padding:12px 0 32px}
   <p class="hint">导入时 Key 会写入本机 WorkBuddy 配置；运行日志不记录 Key。</p><div class="msg" id="m2" role="status" aria-live="polite"></div></section>
 
 <section class="card off" id="c3"><h2><span class="n">2</span>选择模型和思考强度</h2>
+  <div class="protocol-choice-row"><label class="lbl" for="protocolChoice">请求协议</label><select id="protocolChoice" aria-describedby="protocolChoiceStatus"><option value="auto">自动检测</option><option value="openai-chat">OpenAI Chat Completions</option><option value="openai-responses">OpenAI Responses（当前客户端未支持）</option><option value="anthropic-messages">Anthropic Messages（当前客户端未支持）</option></select><span class="hint" id="protocolChoiceStatus" role="status">导入前验证当前服务的 Chat Completions；不会进行协议转换</span></div>
   <div class="row tools"><button class="ghost" id="all">全选</button><button class="ghost" id="none">全不选</button><span class="cnt" id="cnt"></span>
     <span style="flex:1"></span><label class="hint" for="bulk" style="margin:0">把勾选的都设为</label><select id="bulk"><option value="">—</option></select></div>
   <div class="tbl"><table><thead><tr><th style="width:44px"><span hidden>勾选</span></th><th>模型</th><th style="width:140px">思考强度</th></tr></thead><tbody id="mt"></tbody></table></div>
-  <p class="hint">导入前会逐个试一下：模型不可用就不导入；选了思考强度但服务不支持的，会自动改成「关闭」并在结果里说明。导入后在 WorkBuddy 里也能随时切换思考强度。</p></section>
+  <p class="hint">思考强度只读取当前服务模型清单中的能力声明：有声明时显示声明档位，没有声明时显示「未声明」，不会按模型名称猜测或自行补低、中、高。导入不会逐档发送测试请求；导入后在 WorkBuddy 里仍可按客户端实际能力调整。</p></section>
 
 <section class="card off" id="c4"><h2><span class="n">3</span>导入</h2>
   <div class="row"><button class="big" id="b4">导入到 WorkBuddy</button><span class="hint" id="m4" style="margin:0" role="status"></span></div>
@@ -135,7 +137,11 @@ footer{color:var(--m);font-size:12px;text-align:center;padding:12px 0 32px}
 </main>
 <script>
 const T='__WB_TOKEN__';const $=(id)=>document.getElementById(id);let EFF=[],models=[];
-const LBL={auto:'自动',off:'关闭',low:'低',medium:'中',high:'高',xhigh:'超高',max:'极致'};
+const LBL={auto:'按上游声明',off:'关闭',unknown:'未声明',low:'低',medium:'中',high:'高',xhigh:'超高',max:'极致'};
+const WB_LEVELS=['low','medium','high','xhigh','max'];
+function capabilityLabel(m){const c=m.capability;if(!c||c.effortSelection==='unknown')return '上游未声明思考能力';if(c.effortSelection==='unrestricted')return '上游接受思考参数，但未列具体档位';if(c.effortSelection==='unavailable')return '上游未提供可选档位';if(c.reasoning===false||!c.effortLevels?.length)return '上游声明无可选思考档位';return '上游声明：'+c.effortLevels.filter(v=>WB_LEVELS.includes(v)).join(' / ')}
+function protocolStatus(){const value=$('protocolChoice')?.value||'auto';$('protocolChoiceStatus').textContent=value==='auto'?'导入前自动验证当前服务的 Chat Completions；不会进行协议转换':value==='openai-chat'?'固定使用 Chat Completions，导入前仍会验证；不会进行协议转换':'当前 WorkBuddy 自定义配置未支持该原生协议，不会转换；导入时会拒绝此选择'}
+function effortOptions(m){const c=m.capability||{};const out=[{v:'auto',label:c.defaultEffort?`按上游默认（${c.defaultEffort}）`:'按上游声明'}];if(c.effortSelection==='declared'){for(const v of (c.effortLevels||[]).filter(v=>WB_LEVELS.includes(v)))out.push({v,label:LBL[v]});if(c.canDisable===true)out.push({v:'off',label:LBL.off})}return out;}
 async function api(p,b){const r=await fetch(p,{method:b?'POST':'GET',headers:{'X-WB-Token':T,'Content-Type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({error:'本地服务已关闭'}));if(!r.ok)throw new Error((j.error||('HTTP '+r.status))+(j.operationId?'（操作编号：'+j.operationId+'）':''));return j}
 function audit(event,details={}){return api('/api/events',{event,...details}).catch(()=>{})}
 window.addEventListener('error',()=>audit('page.error'));window.addEventListener('unhandledrejection',()=>audit('page.error'));
@@ -158,32 +164,32 @@ $('exportLogs').onclick=async()=>{const b=$('exportLogs');busy(b,1,'正在打包
 }catch(e){msg('logMessage',e.message,'err')}busy(b,0)};
 async function resumeImport(){
   let job;try{job=await api('/api/import-status')}catch(e){return}
-  models=job.rows.map(r=>({id:r.id,checked:true,suggest:r.effortWanted}));renderModels();open(4);
+  models=job.rows.map(r=>({id:r.id,checked:true,suggest:r.effortWanted || 'auto'}));renderModels();open(4);
   $('c4').classList.remove('off');$('c2').inert=true;$('c3').inert=true;
   busy($('b4'),1,'正在恢复配置进度');
   try{await pollImport(job.jobId)}catch(e){$('m4').textContent='进度读取中断：'+e.message+'。后台任务可能仍在运行，请刷新页面恢复进度。';busy($('b4'),0);$('c2').inert=false;$('c3').inert=false}
 }
 function renderModels(){const tb=$('mt');tb.innerHTML='';cnt();if(!models.length){tb.innerHTML='<tr><td colspan="3"><div class="empty">没有可导入的模型，请确认 Key 的模型权限后重试。</div></td></tr>';return}models.forEach((m,i)=>{const tr=document.createElement('tr');
-  tr.innerHTML='<td><input type="checkbox"'+(m.checked?' checked':'')+'></td><td class="id"></td><td><select></select></td>';tr.children[1].textContent=m.id;
-  const sel=tr.querySelector('select');EFF.forEach(e=>{const o=document.createElement('option');o.value=e.v;o.textContent=e.label;if(e.v===m.suggest)o.selected=true;sel.appendChild(o)});
+  tr.innerHTML='<td><input type="checkbox"'+(m.checked?' checked':'')+'></td><td class="model-cell"><div class="id"></div><div class="note capability-note"></div></td><td><select></select></td>';tr.querySelector('.id').textContent=m.id;tr.querySelector('.capability-note').textContent=capabilityLabel(m);
+  const sel=tr.querySelector('select');const options=effortOptions(m);const selected=options.some(o=>o.v===m.suggest)?m.suggest:options[0].v;m.suggest=selected;options.forEach(e=>{const o=document.createElement('option');o.value=e.v;o.textContent=e.label;if(e.v===selected)o.selected=true;sel.appendChild(o)});
   const cb=tr.querySelector('input');cb.setAttribute('aria-label','导入 '+m.id);sel.setAttribute('aria-label',m.id+' 的思考强度');cb.onchange=e=>{m.checked=e.target.checked;cnt();audit('model.toggle',{model:m.id,checked:m.checked})};sel.onchange=e=>{m.suggest=e.target.value;audit('model.effort',{model:m.id,effort:m.suggest})};tb.appendChild(tr)})}
 $('all').onclick=()=>{models.forEach(m=>m.checked=true);renderModels();audit('selection.all',{count:models.length})};$('none').onclick=()=>{models.forEach(m=>m.checked=false);renderModels();audit('selection.none')};
 $('bulk').onchange=e=>{if(!e.target.value)return;audit('model.bulk',{effort:e.target.value,count:models.filter(m=>m.checked).length});models.forEach(m=>{if(m.checked)m.suggest=e.target.value});renderModels();e.target.value=''};
+$('protocolChoice').onchange=protocolStatus;protocolStatus();
 $('b4').onclick=async()=>{const pick=models.filter(m=>m.checked).map(m=>({id:m.id,effort:m.suggest}));if(!pick.length){$('m4').textContent='请至少勾选一个模型';return}
-  const b=$('b4');busy(b,1,'正在检测并导入（'+pick.length+' 个模型）…');$('c2').inert=true;$('c3').inert=true;$('m4').textContent='';open(4);$('res').innerHTML=progressTable(pick.map(m=>({id:m.id,effortWanted:m.effort,effort:'off',phase:'queued',status:'queued',usable:true,note:''})));
-  try{const started=await api('/api/import',{models:pick});$('m4').textContent='后台并发检测中：每个模型完成后会立即更新这一行';await pollImport(started.jobId)}catch(e){$('res').innerHTML='<p class="msg err"></p>';$('res').firstChild.textContent='导入失败：'+e.message+'。请导出历史日志发给客服。';busy(b,0);$('c2').inert=false;$('c3').inert=false}};
+  const b=$('b4');busy(b,1,'正在检测并导入（'+pick.length+' 个模型）…');$('c2').inert=true;$('c3').inert=true;$('m4').textContent='';open(4);$('res').innerHTML=progressTable(pick.map(m=>({id:m.id,effortWanted:m.effort,effort:'unknown',phase:'queued',status:'queued',usable:true,note:''})));
+  try{const started=await api('/api/import',{protocol:$('protocolChoice').value||'auto',models:pick});$('m4').textContent='后台读取协议与模型声明中：每个模型完成后会立即更新这一行';await pollImport(started.jobId)}catch(e){$('res').innerHTML='<p class="msg err"></p>';$('res').firstChild.textContent='导入失败：'+e.message+'。请导出历史日志发给客服。';busy(b,0);$('c2').inert=false;$('c3').inert=false}};
 function statusCell(x){
   if(x.status==='queued')return '<span class="tag">排队中</span>';
-  if(x.status==='testing')return '<span class="tag warn"><span class="spin"></span>'+({availability:'检测可用性',reasoning:'检测思考强度'}[x.phase]||'检测中')+'</span>';
+  if(x.status==='testing')return '<span class="tag warn"><span class="spin"></span>'+({availability:'检测可用性',reasoning:'读取上游声明'}[x.phase]||'检测中')+'</span>';
   if(x.status==='failed'||!x.usable)return '<span class="tag err">未导入</span>';
   if(x.written===false)return '<span class="tag err">未导入</span>';
-  if(x.effortWanted!=='off'&&x.effort==='off')return '<span class="tag warn">已导入·已降级</span>';
   return '<span class="tag ok">已导入</span>';
 }
 function progressTable(rows){const body=rows.map(x=>'<tr><td class="id">'+esc(x.id)+'</td><td>'+statusCell(x)+'</td><td>'+(x.status==='completed'&&x.usable?LBL[x.effort]:'—')+'</td><td class="note">'+esc(x.note||'')+'</td></tr>').join('');return '<div class="tbl solo"><table><thead><tr><th>模型</th><th>状态</th><th>思考强度</th><th>说明</th></tr></thead><tbody>'+body+'</tbody></table></div>'}
 async function pollImport(jobId){let last=null;for(;;){const s=await api('/api/import-status?jobId='+encodeURIComponent(jobId));if(JSON.stringify(s.rows)!==last){$('res').innerHTML=progressTable(s.rows);last=JSON.stringify(s.rows)}if(s.status==='completed'){renderResult(s.result);$('c2').inert=false;$('c3').inert=false;return}if(s.status==='failed'){const msg=s.error?.message||'导入失败';$('res').innerHTML=progressTable(s.rows)+'<p class="msg err"></p>';$('res').lastChild.textContent=msg+'。请导出历史日志发给客服。';busy($('b4'),0);$('c2').inert=false;$('c3').inert=false;return}await new Promise(r=>setTimeout(r,400))}}
-function renderResult(r){$('m4').textContent='配置已结束';const rows=r.rows.map(x=>{const st=!x.usable||x.written===false?'<span class="tag err">未导入</span>':(!['off','auto'].includes(x.effortWanted)&&x.effort==='off')?'<span class="tag warn">已导入·已降级</span>':'<span class="tag ok">已导入</span>';
-  return '<tr><td class="id">'+esc(x.id)+'</td><td>'+st+'</td><td>'+(x.usable?LBL[x.effort]+(x.levels&&x.effort!=='off'?'<div class="note">可选 '+x.levels.map(v=>LBL[v]).join(' / ')+'</div>':''):'—')+'</td><td class="note">'+esc(x.note||'')+'</td></tr>'}).join('');
+function renderResult(r){$('m4').textContent='配置已结束';const rows=r.rows.map(x=>{const st=!x.usable||x.written===false?'<span class="tag err">未导入</span>':'<span class="tag ok">已导入</span>';const effort=x.effort==='unknown'?'未声明':x.effort==='auto'?'按上游声明':(LBL[x.effort]||x.effort);const preserved=x.preserved?'；已保留原配置':'';
+  return '<tr><td class="id">'+esc(x.id)+'</td><td>'+st+'</td><td>'+(x.usable?esc(effort):'—')+(x.levels&&x.levels.length?'<div class="note">上游声明：'+x.levels.map(v=>LBL[v]||v).join(' / ')+'</div>':'')+'</td><td class="note">'+esc((x.note||'')+preserved)+'</td></tr>'}).join('');
   let h='<div class="tbl solo"><table><thead><tr><th>模型</th><th>结果</th><th>思考强度</th><th>说明</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   if(r.operationId)h+='<p class="hint">操作编号：'+esc(r.operationId)+'</p>';
   if(r.ok){h+='<div class="final"><p class="ok">✓ 完成：已导入 '+r.written.length+' 个模型</p><p class="hint">回到 WorkBuddy，在输入框上方的模型选择器里往下翻到「自定义 / Custom」分组即可使用。'+(r.merged===true?'（已确认模型出现在 WorkBuddy 缓存中）':r.merged===false?'（暂未确认热加载，请在 WorkBuddy 查看模型列表）':'（WorkBuddy 下次启动时生效）')+'</p><button class="sec" id="bq">完成，关闭本工具</button></div>';$('b4').textContent='✓ 已导入';$('b4').classList.add('fin');open(5)}

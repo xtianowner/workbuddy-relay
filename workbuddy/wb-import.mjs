@@ -10,10 +10,9 @@ import fs from 'node:fs';
 import crypto from 'node:crypto';
 import { PLATFORM_BASE } from './lib/wb-brand.mjs';
 import { getLogger } from './lib/wb-logs.mjs';
-import {
-  VERSION, normalizeBase, candidates, discoverModels, probe, resolveBaseByProbe, mapLimit,
-  readConfig, mergeModels, buildEntry, writeConfig, defaultConfigPath, pickChatModels, maskKey,
-} from './lib/wb-core.mjs';
+import { VERSION, PROTOCOLS, assertClientProtocol, normalizeBase, discoverModels, pickChatModels, maskKey, defaultConfigPath } from './lib/wb-core.mjs';
+import { runImport } from './lib/wb-flow.mjs';
+import { EFFORTS } from './lib/wb-reasoning.mjs';
 
 const BOOL = ['dry-run', 'yes', 'no-probe', 'prune', 'stdin-json', 'help', 'version'];
 const args = (() => {
@@ -41,7 +40,8 @@ if (args.help || args.h) {
   --config <path>           覆盖 models.json 路径
   --available <mode>        union(默认) | none | replace
   --owner <tag> / --prune   只清理自己写入过的条目
-  --no-probe                跳过探测
+  --no-probe                跳过生成连通性探测，仍读取上游声明
+  --protocol <protocol>     ${PROTOCOLS.join(' | ')}
   --stdin-json              从 stdin 读 {"url","key","models"}
   --dry-run                 不落盘`);
   process.exit(0);
@@ -51,11 +51,13 @@ async function main() {
   let url = args.url || process.env.WB_RELAY_URL;
   let key = args.key || process.env.WB_RELAY_KEY;
   let modelsArg = args.models;
+  let protocolArg = args.protocol;
 
   if (args.stdinJson) {
     const j = JSON.parse(fs.readFileSync(0, 'utf8'));
     url = url || j.url || j.baseUrl || j.base_url;
     key = key || j.key || j.apiKey || j.api_key;
+    protocolArg ??= j.protocol;
     if (!modelsArg && Array.isArray(j.models)) modelsArg = j.models.join(',');
   }
   url ||= PLATFORM_BASE;
@@ -66,69 +68,32 @@ async function main() {
   if (!base0) die('--url 不合法');
   const file = defaultConfigPath(args.config);
 
-  let base = base0;
-  let ids = [];
-  if (modelsArg) {
-    ids = modelsArg.split(',').map((s) => s.trim()).filter(Boolean);
-    if (!ids.length) die('--models 为空');
-    if (!args.noProbe && !args.dryRun) {
-      const r = await resolveBaseByProbe(base0, key, ids[0]);
-      if (r.fatal) die(`${r.fatal}：Key 无效或无权限`);
-      if (r.error) die(`接口地址不通：\n  ${r.error}`);
-      base = r.base;
-    } else base = candidates(base0).slice(-1)[0];
-  } else {
-    log(`发现模型：${candidates(base0).map((b) => `${b}/models`).join(' 或 ')} …`);
-    const found = await discoverModels(base0, key);
-    if (found.fatal) die(`${found.fatal}${found.tried ? `\n已尝试：${found.tried.join(', ')}` : ''}\n（可用 --models a,b,c 手动指定）`);
-    base = found.base;
+  const protocol = assertClientProtocol(protocolArg ?? 'auto');
+  const base = base0;
+  let ids = modelsArg ? modelsArg.split(',').map(s => s.trim()).filter(Boolean) : null;
+  if (!ids) {
+    const found = await discoverModels(base, key, 15000, { logger, operationId });
+    if (found.fatal) die(found.fatal);
     ids = found.ids;
-    log(`发现 ${ids.length} 个模型（base = ${base}）`);
   }
-
-  let picked = pickChatModels(ids, Number(args.maxModels || 12));
+  const picked = pickChatModels(ids, Number(args.maxModels || 12));
   if (!picked.length) die('没有可用模型 id');
-
-  if (!args.noProbe && !args.dryRun && !modelsArg) {
-    log(`连通性探测 ${picked.length} 个模型…`);
-    const rows = await mapLimit(picked, 4, async (m) => ({ m, r: await probe(base, key, m) }));
-    const fatal = rows.find((x) => x.r.fatal);
-    if (fatal) die(`${fatal.r.fatal}：${fatal.r.body || ''}`);
-    const bad = rows.filter((x) => !x.r.ok);
-    if (bad.length) log(`跳过不可用：${bad.map((b) => `${b.m}(${b.r.reason})`).join(', ')}`);
-    const good = rows.filter((x) => x.r.ok).map((x) => x.m);
-    if (!good.length) die('全部模型探测失败，未写入配置');
-    picked = good;
-  }
-
-  const owner = args.owner === undefined ? 'wb-import-v1' : args.owner;
-  const incoming = picked.map((id) => buildEntry(id, base, key, {
-    vendor: args.vendor || 'Custom', prefix: args.namePrefix || '', owner,
-  }));
-
-  logger.record('config.read.started', { file }, 'info', operationId);
-  const cfg = readConfig(file);
-  logger.record('config.read.completed', { file, count: cfg.models.length }, 'info', operationId);
-  const { models, added, updated, skipped, pruned } = mergeModels(cfg.models, incoming, base, owner, !!args.prune);
-  const available = cfg.availableModels ? [...new Set([...cfg.availableModels, ...picked])] : undefined;
-
-  console.log('');
+  const effort = args.effort || 'auto';
+  if (!EFFORTS.includes(effort)) die(`思考强度必须为：${EFFORTS.join('/')}`);
+  const result = await runImport({
+    base, key, protocol, models: picked.map(id => ({ id, effort })), configPath: file,
+    owner: args.owner === undefined ? 'wb-import-v1' : args.owner, prune: !!args.prune,
+    skipProbe: !!args.noProbe || !!args.dryRun, dryRun: !!args.dryRun,
+    vendor: args.vendor || 'Custom', prefix: args.namePrefix || '', logger, operationId, mergeTimeoutMs: 0,
+  });
+  if (!result.ok) die(result.fatal);
   console.log(`配置文件  ${file}`);
   console.log(`接口      ${base}/chat/completions`);
   console.log(`API Key   ${maskKey(key)}`);
-  console.log(`新增 ${added.length} / 更新 ${updated.length} / 跳过 ${skipped.length}${pruned.length ? ` / 清理 ${pruned.length}` : ''}`);
-  if (added.length) console.log(`  新增：${added.join(', ')}`);
-  if (updated.length) console.log(`  更新：${updated.join(', ')}`);
-  if (pruned.length) console.log(`  清理：${pruned.join(', ')}`);
-  skipped.forEach((s) => console.log(`  ${s}`));
-  console.log('');
+  console.log(`新增 ${result.added.length} / 更新 ${result.updated.length} / 跳过 ${result.skipped.length}`);
+  if (args.dryRun) { console.log(JSON.stringify(logger.sanitize(result.preview), null, 2)); log('dry-run，未写入'); }
+  else log('已写入，WorkBuddy 约 1 秒内热加载，无需重启。');
 
-  if (args.dryRun) { console.log(JSON.stringify(logger.sanitize(models), null, 2)); log('dry-run，未写入'); return; }
-
-  logger.record('config.write.started', { file, added, updated, skipped, pruned }, 'info', operationId);
-  const { backup } = writeConfig(file, cfg, models, available, { logger, operationId });
-  logger.record('config.write.completed', { file, backup }, 'info', operationId);
-  log('已写入，WorkBuddy 约 1 秒内热加载，无需重启。');
 }
 
 main().catch((e) => die(e.stack || e.message));

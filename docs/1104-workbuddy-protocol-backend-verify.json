@@ -1,0 +1,29 @@
+{
+  "checkedAt": "2026-11-04T05:20:38.600187+00:00",
+  "executionSurface": "local macOS; temporary fixtures only",
+  "commands": [
+    {
+      "command": "/Users/tian/.nvm/versions/node/v24.12.0/bin/node --test workbuddy/test/*.test.mjs",
+      "exitCode": 0,
+      "rawOutput": "✔ normalizeBase 去掉端点、query、尾斜杠，并补协议 (0.548125ms)\n✔ native protocol endpoints are explicit and never converted (0.480917ms)\n✔ candidates 只返回规范化后的唯一 base (0.201167ms)\n✔ extractIds 兼容 data / models / 纯字符串数组 (0.082ms)\n✔ mergeModels：同站更新、跨站跳过、按 owner 清理 (0.229833ms)\n✔ pickChatModels 过滤非聊天模型并按上限截断 (0.158167ms)\n✔ writeConfig：原子替换、留备份、保留 availableModels、权限 600 (11.131291ms)\n✔ readConfig：裸数组与空文件都能读 (0.474791ms)\n✔ 回归 2.0.1：HTML 200 不算可用；JSON 必须含 choices (0.10525ms)\n✔ 回归 2.0.1：过滤通配符模型 id (0.081375ms)\n✔ 回归 2.0.1：自动清理/修复旧版写坏的条目（仅本工具、同站点） (0.120042ms)\n✔ backupName: 时间戳 14 位，结尾无点/空格（Windows 可正常删除） (0.168292ms)\n✔ actual HTTP metadata GET drives saved WorkBuddy fields without reasoning generation probes (15.121042ms)\n✔ unverified native protocols and invalid selections fail before any request or write (1.892292ms)\n✔ automatic detection stays Chat-only when Chat is rejected (7.66025ms)\n✔ skipProbe auto needs an exact preexisting Chat profile (3.984875ms)\n✔ missing metadata stays unknown and only exact endpoint plus credential can retain previous reasoning (3.662667ms)\n✔ a same-host different endpoint remains a separate site and prune preserves its models (0.108791ms)\n✔ basic availability probes remain separate and never carry reasoning parameters (2.82075ms)\n✔ upstream mandatory or unsupported effort prevents writing an invalid model (3.165333ms)\n✔ metadata outage preserves unknown state, whereas catalog authentication failure stops before writes (2.728958ms)\n✔ discovery preserves native slug declarations and never follows upstream redirects (1.42875ms)\n✔ same key at a different Base URL never supplies prior reasoning (1.322542ms)\n✔ legacy cleanup never deletes Responses, Anthropic or other same-host versioned entries (0.165167ms)\n✔ strict shared Chat detection rejects redirects and empty or wrong response shapes (7.563625ms)\n✔ CLI stdin-json protocol is honored before network and before configuration writes (35.7215ms)\n✔ 本地日志记录操作并在导出时脱敏 (5.567292ms)\n✔ generated page matches source and defaults protocol to auto (0.394542ms)\n✔ fixed Chat still verifies while unverified native protocols explain refusal (0.536542ms)\n✔ WorkBuddy selectable levels remain a client intersection, never a capability default (1.73175ms)\n✔ ordinary IDs, missing and malformed declarations never synthesize supported tiers (0.265583ms)\n✔ a declared list does not manufacture a medium default or disable support (0.14175ms)\n✔ unknown declarations preserve caller-proven existing fields without converting unknown into supported (0.242292ms)\n✔ explicit empty, toggle and budget declarations clear obsolete discrete tiers instead of reusing them (0.297958ms)\n✔ mandatory reasoning and explicitly unsupported selections cannot be silently changed (0.232ms)\n✔ an explicit upstream default off is preserved; unknown off does not claim canDisable (0.150375ms)\n✔ vendored parser agrees with the shared upstream conformance vectors (0.720916ms)\n✔ vendored router artifacts and all nine shared fixtures match pinned provenance (5.426417ms)\n✔ siteOrigin / isInsecure (0.495875ms)\n✔ 平台识别 (13.659083ms)\n✔ new-api：默认复用同名 Key，完整 key 走 reveal 并补 sk- (0.967834ms)\n✔ new-api：用户选择指定 Key / 新建 (1.512417ms)\n✔ new-api：被拒→取 /api/user/self id→带 New-Api-User 重试 (0.978292ms)\n✔ new-api：缺 reveal 权限报 AUTH (0.384084ms)\n✔ sub2api：列表选 Key / 无 Key 时新建 / 401 (0.674791ms)\n✔ 缺凭证报 NEED_TOKEN（界面引导用户去复制或粘贴） (0.1115ms)\n✔ uniqueName ≤50 字符且带后缀 (0.084625ms)\n✔ new-api 列表请求使用 p + page_size (0.225208ms)\n✔ 网页异步导入：鉴权、进度、跨站保留、备份和日志脱敏 (34.46275ms)\nℹ tests 49\nℹ suites 0\nℹ pass 49\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 174.1815\n"
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0,
+      "rawOutput": ""
+    }
+  ],
+  "protocolBundle": {
+    "source": "/Users/tian/Documents/00-Tian/00-Tian-Project/llm-protocol-router/js/dist/protocol-discovery-standalone.mjs",
+    "vendored": "workbuddy/lib/vendor/protocol-discovery.mjs",
+    "sha256": "09e5d3867ce569c7517444b862d6c03d086902474f838fc378a9d3606068d6a6"
+  },
+  "notCovered": [
+    "Live upstream model generation",
+    "Native WorkBuddy login/chat",
+    "Windows native execution",
+    "Final binaries",
+    "Publication"
+  ],
+  "provenance": "workbuddy/lib/vendor/router-provenance.json"
+}

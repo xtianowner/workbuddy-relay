@@ -1,0 +1,93 @@
+{
+  "passed": true,
+  "results": [
+    {
+      "width": 390,
+      "models": 3,
+      "declaredOpts": [
+        "按上游默认（high）",
+        "低",
+        "高",
+        "关闭"
+      ],
+      "plainOpts": [
+        "按上游声明"
+      ],
+      "mandatoryOpts": [
+        "按上游默认（medium）",
+        "中"
+      ],
+      "overflow": false,
+      "dims": {
+        "doc": 390,
+        "body": 390,
+        "innerWidth": 390,
+        "html": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 1502.78125,
+          "top": 0,
+          "right": 390,
+          "bottom": 1502.78125,
+          "left": 0
+        },
+        "bodyRect": {
+          "x": 0,
+          "y": 0,
+          "width": 390,
+          "height": 1502.78125,
+          "top": 0,
+          "right": 390,
+          "bottom": 1502.78125,
+          "left": 0
+        }
+      },
+      "offenders": []
+    },
+    {
+      "width": 1440,
+      "models": 3,
+      "declaredOpts": [
+        "按上游默认（high）",
+        "低",
+        "高",
+        "关闭"
+      ],
+      "plainOpts": [
+        "按上游声明"
+      ],
+      "mandatoryOpts": [
+        "按上游默认（medium）",
+        "中"
+      ],
+      "overflow": false,
+      "dims": {
+        "doc": 1440,
+        "body": 1440,
+        "innerWidth": 1440,
+        "html": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 1239.46875,
+          "top": 0,
+          "right": 1440,
+          "bottom": 1239.46875,
+          "left": 0
+        },
+        "bodyRect": {
+          "x": 0,
+          "y": 0,
+          "width": 1440,
+          "height": 1239.46875,
+          "top": 0,
+          "right": 1440,
+          "bottom": 1239.46875,
+          "left": 0
+        }
+      },
+      "offenders": []
+    }
+  ]
+}

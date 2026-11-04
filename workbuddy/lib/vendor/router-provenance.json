@@ -1,0 +1,27 @@
+{
+  "sourceRepository": "https://github.com/xtianowner/llm-protocol-router",
+  "package": "llm-protocol-router",
+  "version": "0.4.1-bridge.2",
+  "tarball": {
+    "name": "llm-protocol-router-0.4.1-bridge.2.tgz",
+    "sha256": "4142810ebddbbca25a9512cbb155ea1d1691e6ff497f810a183773118be68623"
+  },
+  "artifacts": [
+    {
+      "source": "js/dist/protocol-discovery-standalone.mjs",
+      "vendored": "protocol-discovery.mjs",
+      "sha256": "09e5d3867ce569c7517444b862d6c03d086902474f838fc378a9d3606068d6a6"
+    },
+    {
+      "source": "js/dist/reasoning.js",
+      "vendored": "reasoning.mjs",
+      "sha256": "a59b4dde2315f112bd777c2b85298c6a944572722afab81dacb3b25081d602d0"
+    }
+  ],
+  "reasoningFixtures": {
+    "source": "js/test/reasoning-fixtures.json",
+    "vendored": "../../test/reasoning-fixtures.json",
+    "sha256": "61cab24f59cd633cf20f344a323b3d36a068e009344e3c24fc269edb8cdf0acf",
+    "count": 9
+  }
+}

@@ -1,0 +1,1 @@
+{"passed": 4, "results": [{"case": "new-api", "passed": true, "exit": 0}, {"case": "sub2api", "passed": true, "exit": 0}, {"case": "bad key", "passed": true, "exit": 1}, {"case": "mandatory off", "passed": true, "exit": 1}], "externalModelCalled": false}

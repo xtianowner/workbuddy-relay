@@ -1,9 +1,9 @@
-/** 导入流水线（CLI 与本地网页共用）：探测可用 → 思考强度探测/降级 → 写 models.json → 等 WorkBuddy 热加载 */
+/** 导入流水线（CLI 与本地网页共用）：读取上游声明 → 探测可用 → 按声明生成配置 → 写 models.json → 等 WorkBuddy 热加载 */
 import os from 'node:os';
 import crypto from 'node:crypto';
-import { VERSION, probe, mapLimit, readConfig, mergeModels, buildEntry, writeConfig, defaultConfigPath, findMergedModel } from './wb-core.mjs';
-import { probeReasoning, reasoningFields, probeLevels, nearestLevel, EFFORT_LABEL, WB_LEVELS } from './wb-reasoning.mjs';
-import { getLogger, loggedFetch } from './wb-logs.mjs';
+import { VERSION, discoverModels, probe, normalizeProtocol, assertClientProtocol, protocolEndpoint, mapLimit, readConfig, mergeModels, buildEntry, writeConfig, defaultConfigPath, findMergedModel } from './wb-core.mjs';
+import { reasoningForImport } from './wb-reasoning.mjs';
+import { getLogger } from './wb-logs.mjs';
 
 export const OWNER = 'wb-setup-v1';
 
@@ -11,56 +11,53 @@ export const OWNER = 'wb-setup-v1';
  * @param {{base:string,key:string,models:{id:string,effort?:string}[],configPath?:string,owner?:string,skipProbe?:boolean,dryRun?:boolean,fetchImpl?:Function}} o
  * @returns {Promise<{ok:boolean, file:string, rows:object[], written:string[], added:string[], updated:string[], skipped:string[], pruned:string[], merged:boolean|null, fatal?:string}>}
  */
-export async function runImport({ base, key, models, configPath, owner = OWNER, prune = false, skipProbe = false, dryRun = false, vendor = 'Custom', prefix = '', fetchImpl = fetch, mergeTimeoutMs = 8000, onProgress = () => {}, logger = getLogger(VERSION), operationId = crypto.randomUUID() }) {
+export async function runImport({ base, key, models, protocol = 'auto', configPath, owner = OWNER, prune = false, skipProbe = false, dryRun = false, vendor = 'Custom', prefix = '', fetchImpl = fetch, mergeTimeoutMs = 8000, onProgress = () => {}, logger = getLogger(VERSION), operationId = crypto.randomUUID() }) {
   const file = defaultConfigPath(configPath);
   logger.addSecret(key);
   const started = Date.now();
   const event = (name, details, level = 'info') => logger.record(name, details, level, operationId);
-  const request = loggedFetch(fetchImpl, logger, operationId);
+  const reasoningFieldsById = new Map();
   let stage = 'probe';
   event('import.started', { file, models, dryRun, skipProbe });
   try {
+  stage = 'protocol.validate';
+  const selectedProtocol = assertClientProtocol(protocol);
+  models.forEach(model => assertClientProtocol(model.protocol ?? selectedProtocol));
+  stage = 'config.read';
+  const existing = readConfig(file);
+  stage = 'metadata';
+  const found = await discoverModels(base, key, 15000, { fetchImpl, logger, operationId });
+  if (found.fatal?.startsWith('鉴权失败')) throw Object.assign(new Error(found.fatal), { code: 'MODEL_CATALOG_AUTH_FAILED' });
+  const capabilities = found.capabilities || {};
+  event('models.capabilities.read', { declared: Object.values(capabilities).filter(value => value.source !== 'unknown').length, available: !found.fatal });
   // Five concurrent model jobs keeps a large catalog moving without
   // overwhelming the relay or triggering its rate limits.
-  const rows = await mapLimit(models, 5, async ({ id, effort = 'auto' }) => {
-    const row = { id, effortWanted: effort, effort: 'off', usable: true, note: '' };
+  const rows = await mapLimit(models, 5, async ({ id, effort = 'auto', protocol: modelProtocol }) => {
+    const requestedProtocol = normalizeProtocol(modelProtocol ?? selectedProtocol);
+    const endpoint = protocolEndpoint(base, 'openai-chat');
+    const previous = existing.models.find(m => m.id === id && m.apiKey === key && m.url === endpoint && (!m.wbProtocol || m.wbProtocol === 'openai-chat'));
+    const row = { id, effortWanted: effort, effort: 'off', protocolRequested: requestedProtocol, protocol: requestedProtocol === 'auto' ? null : requestedProtocol, usable: true, note: '' };
+    let selectedProbe = null;
+    if (skipProbe && requestedProtocol === 'auto') {
+      if (!previous) throw Object.assign(new Error('跳过检测时无法自动确认协议；请选择 Chat 或先执行检测'), { code: 'PROTOCOL_UNVERIFIED' });
+      row.protocol = 'openai-chat';
+    }
     onProgress({ ...row, phase: 'availability', status: 'testing' });
     if (!skipProbe) {
-      const r = await probe(base, key, id, 30000, { fetchImpl, logger, operationId });
+      const r = await probe(base, key, id, 30000, { protocol: requestedProtocol, fetchImpl, logger, operationId });
+      selectedProbe = r;
       event('model.probed', { id, ok: r.ok, reason: r.reason, fatal: r.fatal }, r.ok ? 'info' : 'warn');
       if (r.fatal) { const failed = { ...row, usable: false, status: 'failed', phase: 'availability', fatal: r.fatal, note: r.fatal }; onProgress(failed); return failed; }
       if (!r.ok) { const failed = { ...row, usable: false, status: 'failed', phase: 'availability', note: `不可用（${r.reason}）` }; onProgress(failed); return failed; }
     }
-    if (effort !== 'off') {
-      onProgress({ ...row, phase: 'reasoning', status: 'testing' });
-      const want = effort === 'auto' ? 'medium' : effort; // 自动：所有模型都实测，通过就默认「中」
-      if (skipProbe) { if (effort !== 'auto') { row.effort = effort; row.format = 'openai'; row.note = '未探测思考强度'; } }
-      else {
-        // 先查这个模型支持哪些档位（只对 OpenAI 格式有意义），再用落到支持范围内的档位做正式探测
-        const lv = await probeLevels(base, key, id, { fetchImpl: request, timeoutMs: 60000 });
-        const candidates = lv.levels ? WB_LEVELS.filter(v => lv.levels.includes(v) || lv.unknown?.includes(v)) : null;
-        const use = candidates ? nearestLevel(want, candidates) : want;
-        const t = await probeReasoning(base, key, id, use, { fetchImpl: request, timeoutMs: 60000 });
-        event('model.reasoning', { id, requested: effort, selected: use, levels: lv.levels, how: lv.how, supported: t.ok, format: t.format, reason: t.reason });
-        if (!t.ok && t.uncertain) {
-          const previous = readConfig(file).models.find(m => m.id === id && m.url === `${base}/chat/completions`);
-          row.effort = previous?.reasoning?.defaultEffort || use;
-          row.format = previous?.compat?.thinkingFormat || 'openai';
-          row.levels = previous?.reasoning?.supportedEfforts || candidates || undefined;
-          row.canDisable = previous?.reasoning?.canDisableThinking;
-          row.note = `思考参数暂未确认（${t.reason}）；保留思考配置，未判定为不支持`;
-        }
-        else if (effort === 'auto' && !t.ok) row.note = `服务明确拒绝思考参数（${t.reason}），已关闭`;
-        else if (t.ok) {
-          row.effort = use; row.format = t.format; row.confirmed = t.confirmed;
-          if (t.format === 'openai' && candidates) { row.levels = candidates; row.canDisable = lv.canDisable; }
-          const lvTxt = row.levels ? `可选：${row.levels.map((v) => EFFORT_LABEL[v]).join('/')}${lv.how === 'partial' ? '（含待确认档位；服务异常未按不支持处理）' : '（参数请求通过）'}` : '档位可调性未确认，暂按低/中/高配置';
-          const moved = use !== want ? `「${EFFORT_LABEL[want]}」不支持，已改为「${EFFORT_LABEL[use]}」；` : '';
-          row.note = `${moved}${lvTxt}；${t.confirmed ? '已返回思考信息；无法据此确认各档位效果' : '参数请求通过；未返回思考信息，实际效果未确认'}`;
-        }
-        else row.note = `该模型经此服务不支持思考强度（${t.reason}），已按不带思考强度导入`;
-      }
-    }
+    onProgress({ ...row, phase: 'reasoning', status: 'testing' });
+    // A prior declaration is retained only for the exact endpoint and credential.
+    const { extra, rejected, ...reasoning } = reasoningForImport(capabilities[id], effort, previous);
+    Object.assign(row, reasoning);
+    reasoningFieldsById.set(id, extra);
+    if (rejected) row.usable = false;
+    if (selectedProbe?.protocol) row.protocol = selectedProbe.protocol;
+    event('model.reasoning', { id, requested: effort, selected: row.effort, protocol: row.protocol, source: row.capabilitySource, status: row.capabilityStatus });
     row.phase = 'complete'; row.status = 'completed';
     event('model.completed', row);
     onProgress(row);
@@ -71,11 +68,9 @@ export async function runImport({ base, key, models, configPath, owner = OWNER, 
   const good = rows.filter((r) => r.usable);
   if (!good.length) { event('import.failed', { stage, code: 'NO_USABLE_MODELS' }, 'error'); return { ok: false, code: 'NO_USABLE_MODELS', operationId, fatal: '所选模型全部探测失败，未写入配置', rows, file }; }
 
-  const incoming = good.map((r) => {
-    const rf = reasoningFields(r.effort, r.format, r.levels, r.canDisable);
-    const extra = r.effort === 'off' ? { ...rf, reasoning: undefined, compat: undefined } : { ...rf, compat: rf.compat };
-    return buildEntry(r.id, base, key, { vendor, prefix, owner, extra });
-  });
+  const incoming = good.map((r) => buildEntry(r.id, base, key, {
+    protocol: r.protocol || protocol, vendor, prefix, owner, extra: reasoningFieldsById.get(r.id),
+  }));
   stage = 'config.read'; event('config.read.started', { file });
   const cfg = readConfig(file);
   event('config.read.completed', { file, shape: cfg.shape, count: cfg.models.length });

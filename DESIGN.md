@@ -1,15 +1,25 @@
+<!-- purpose: WorkBuddy 本地模型配置工具的当前协议与能力契约。 -->
+- 创建时间：2026-10-24 00:00:00
+- 更新时间：2026-11-04 13:19:27
+- 时区：Asia/Shanghai
+
 # WorkBuddy 中转站一键接入 · 设计方案 v2
 
 > v2 · 2026-10-24 · **原则：不改 new-api / sub2api 任何代码，只用它们现有的用户侧接口。**
 > 两个平台本来就让用户在网页上复制「API 端点 + Key」（new-api 令牌管理页、sub2api API 密钥页）。v2 只是把「复制 → 粘贴 → 配置 WorkBuddy」简化成一步。
 > 代码：`workbuddy/lib/wb-relay.mjs`、`wb-setup.mjs`、`test/relay.test.mjs`。第二部分为 v1 本地导入引擎原文，仍有效。
 
-## 变更 2.3.0：每个模型实测思考档位（低/中/高/超高/极致）
+## 原生协议选择边界
 
-- WorkBuddy 5.8.3 认可的档位（Mac 与 天选 的 app.asar 一致）：minimal/low/medium/high/xhigh/max，中文标签 低/低/中/高/超高/极致；其它值（如 ultra）会被过滤。对话框模型选择器只显示 low/medium/high/xhigh/max（getReasoningEffortItems），minimal 不显示，所以本工具不提供也不探测 minimal。canDisableThinking:false 时选择器不出现「关闭思考」。
-- 导入时每个模型：先发一个无效取值（被接受 = 中转站忽略参数 → 保守写低/中/高）；否则并发逐档试 5 档 + none，接受的写进 supportedEfforts，none 决定 canDisableThinking。
-- 无效值报错里列出的是全局枚举，不代表该模型支持（smaragents 实测 gpt-6 拒绝 minimal/none），所以必须逐档实测。
-- 想要的档位不在支持范围内时改用最接近的档，并在结果页写明。
+- 协议字段保留 `auto`、`openai-chat`、`openai-responses`、`anthropic-messages`，WorkBuddy 客户端写入仅确认 Chat；自动检测用共享 router 的 Chat-only 范围。非 Chat 在发送请求和写入前返回 `CLIENT_PROTOCOL_UNVERIFIED`。
+- WorkBuddy 仅写入已确认的 Chat `/chat/completions`，保存 `wbProtocol: openai-chat`。`useCustomProtocol` 只是 URL 透传；其它原生协议适配尚未验证。跳过探测的 auto 必须已有同模型、端点与 Key 的 Chat 配置。源码只读证据见 `docs/1104-workbuddy-native-protocol-evidence.json`。
+
+## 变更 2.5.2：按上游模型声明读取思考能力
+
+- 能力来源是用户当前 Base URL 的 `GET /models` 返回项，不是模型名称猜测，也不是公共注册表套用。共享 `llm-protocol-router` parser 同时识别 Codex `supported_reasoning_levels`、OpenRouter `reasoning` 和 models.dev `reasoning_options`。
+- `supported_efforts` / `supported_reasoning_levels` 明确为空仍表示明确没有离散档位；字段缺失、格式不一致、临时失败都表示未知。WorkBuddy 只展示声明且自身能表示的 low/medium/high/xhigh/max。
+- 导入保留 Base URL + API Key 精确绑定的既有思考配置；新未知模型不写 `supportsReasoning`、`reasoning` 或伪造默认档位。基础可用性请求只验证 `choices`，不携带 reasoning 参数。
+- `mandatory`、`none`、`toggle` 只在上游明确声明时影响关闭思考；未知不能推断可关闭。
 
 ## 变更 2.2.3（备份文件名修复）
 
@@ -22,12 +32,11 @@
 - 仍找不到程序但已有 ~/.workbuddy/models.json 时，提示后继续导入，不再直接退出。
 - 已在真实 Windows 10（WorkBuddy 5.8.3 装在 D 盘）上实测通过。
 
-## 变更 2.2.1（黑灰界面 + 每个模型实测思考强度）
+## 变更 2.2.1（历史实现，已由2.5.2替换）
 
-- 界面：默认配色改为中性黑灰（主色 #1F2329，与 WorkBuddy 一致），删除备选配色。
-- 思考强度：新增默认选项 `auto`「自动（实测）」。不再按模型名猜：所选的**每个**模型都用 `reasoning_effort=medium` 实测一次（并发 4，单次超时 30s；DeepSeek/Qwen/GLM 被拒时再试各自格式）。接受 → `supportsReasoning:true` + `reasoning{defaultEffort:'medium', supportedEfforts:['low','medium','high'], canDisableThinking:true}`；不接受 → 关闭。用户仍可在网页里逐个改成关闭/低/中/高（手动档位不通过时照旧降级）。CLI `--effort auto` 同此逻辑。
+旧版本曾按模型请求探测并按模型族转换思考参数。2.5.2起不再发送无效值、逐档请求或根据模型名猜测；能力读取统一使用当前Base URL的模型声明。
 
-## 变更 2.2.0（网页填写 + 每个模型可选思考强度）
+## 变更 2.2.0（网页填写 + 每个模型可选思考强度；历史）
 
 **交互**：不带参数运行（双击 exe / Mac 程序 / .command / .bat）= 网页模式（`lib/wb-web.mjs` + `lib/wb-page.html`）。
 - 只监听 `127.0.0.1` 随机端口；页面 URL 带一次性 token（`/?t=`），API 要求 `X-WB-Token` 头；校验 Host（防 DNS rebinding，否则 421）和 Origin（外站 403）；POST 只收 JSON（415）；CSP 禁外部资源。
@@ -42,9 +51,9 @@
 - 内置模型的缓存 `~/.workbuddy/cache/acc-product-config-v3.json` 中是 `supportsReasoning:true, reasoning:{defaultEffort:'high',supportedEfforts:['low','high','max'],...}`。
 - `app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs` 约 3760006 `createCompatibilityRules`：读自定义模型的 `compat` / `thinkingLevelMap`；`withSupportedEffortsFallback` 用 `reasoning.supportedEfforts` 生成 thinkingLevelMap；默认发 OpenAI Chat `reasoning_effort`；约 3750746 ThinkingFormatTranslatorRule 支持 `compat.thinkingFormat` = deepseek / qwen / zai / openrouter / together …；MaxTokensFieldRule 对 o1/o3/o4/gpt-4.1/gpt-5 改用 `max_completion_tokens`。
 
-**思考探测（`lib/wb-reasoning.mjs`）**：对选了思考强度的模型发一次 `POST /chat/completions`（与 WorkBuddy 一致：`reasoning_effort`，o/gpt-5 用 `max_completion_tokens`），要求 JSON + choices；有 `reasoning_content` 或 `reasoning_tokens>0` 记为「已生效」，否则「已接受、无法确认」。被拒绝时 DeepSeek / Qwen / GLM 再试各自格式（成功写 `compat.thinkingFormat`）；仍失败 → 降级为 `supportsReasoning:false`，页面说明原因。
+**历史实现（已移除）**：原先通过 Chat Completions 逐档探测思考参数。2.5.2 起不再运行该链路；当前能力只按当前 Base URL 的模型声明写入。
 
-**待确认**：① new-api / sub2api 对 Claude / Gemini 是否把 `reasoning_effort` 转成各自的 thinking 参数，取决于站点版本和渠道配置，由运行时探测决定；② WorkBuddy 界面上自定义模型是否显示「思考强度」一栏——按代码应显示，但尚未在 WorkBuddy 界面实测。
+**待确认**：① new-api / sub2api 对 Claude / Gemini 是否把 `reasoning_effort` 转成各自的 thinking 参数，取决于站点版本和渠道配置；当前版本不主动探测；② WorkBuddy 界面上自定义模型是否显示「思考强度」一栏——按代码应显示，但尚未在 WorkBuddy 界面实测。
 
 ## 变更 2.0.1（真机 bug：sub2api 站点导入后不可用）
 - 根因：粘贴模式用站点根地址作 base；旧逻辑「先试原样、再补 /v1」，sub2api 根路径 `/models` 也返回 JSON 模型列表，于是 base 定成了根地址，写入 `<站点>/chat/completions`。该地址是前端页面（HTML 200），而探测只看 2xx，所以误判为可用。

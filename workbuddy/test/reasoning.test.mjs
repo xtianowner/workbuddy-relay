@@ -1,100 +1,94 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { suggestEffort, familyOf, formatsFor, checkReasoningResponse, probeReasoning, reasoningFields } from '../lib/wb-reasoning.mjs';
-import { buildEntry, mergeModels } from '../lib/wb-core.mjs';
+import fs from 'node:fs';
+import { WB_LEVELS, EFFORTS, reasoningForImport } from '../lib/wb-reasoning.mjs';
+import { parseReasoningCapabilities } from '../lib/vendor/reasoning.mjs';
 
-test('按家族给默认思考强度建议', () => {
-  for (const id of ['gpt-5.5', 'o3-mini', 'claude-sonnet-4', 'claude-opus-4-1', 'gemini-2.5-pro', 'deepseek-r1', 'qwen3-235b', 'glm-4.6', 'kimi-k2-thinking', 'grok-4']) assert.equal(suggestEffort(id), 'medium', id);
-  for (const id of ['gpt-4o', 'gpt-4o-mini', 'claude-3-5-haiku', 'qwen2.5-72b-instruct', 'llama-3-70b']) assert.equal(suggestEffort(id), 'off', id);
-  assert.equal(familyOf('deepseek-v3.1'), 'deepseek');
-  assert.deepEqual(formatsFor('glm-4.6').map((f) => f.fmt), ['openai', 'zai']);
-});
-test('思考探测响应校验', () => {
-  assert.equal(checkReasoningResponse('text/html', '<html>').ok, false);
-  assert.equal(checkReasoningResponse('application/json', '{"error":{"message":"x"}}').ok, false);
-  assert.deepEqual(checkReasoningResponse('application/json', '{"choices":[{"message":{"content":"2"}}],"usage":{"completion_tokens_details":{"reasoning_tokens":5}}}'), { ok: true, confirmed: true });
-  assert.deepEqual(checkReasoningResponse('application/json', '{"choices":[{"message":{"content":"2"}}]}'), { ok: true, confirmed: false });
-});
-const fake = (fn) => async (url, init) => { const b = JSON.parse(init.body); const [code, obj] = fn(b); return new Response(JSON.stringify(obj), { status: code, headers: { 'content-type': 'application/json' } }); };
-test('探测：支持 / 退回家族格式 / 降级', async () => {
-  const ok = await probeReasoning('http://x/v1', 'k', 'gpt-5', 'high', { fetchImpl: fake((b) => { assert.equal(b.reasoning_effort, 'high'); assert.ok(b.max_completion_tokens); return [200, { choices: [{ message: { content: '2' } }] }]; }) });
-  assert.deepEqual(ok, { ok: true, format: 'openai', confirmed: false });
-  const ds = await probeReasoning('http://x/v1', 'k', 'deepseek-v3.1', 'medium', { fetchImpl: fake((b) => (b.thinking ? [200, { choices: [{ message: { content: '2', reasoning_content: 'r' } }] }] : [400, { error: { message: 'no' } }])) });
-  assert.deepEqual(ds, { ok: true, format: 'deepseek', confirmed: true });
-  const bad = await probeReasoning('http://x/v1', 'k', 'claude-sonnet-4', 'low', { fetchImpl: fake(() => [400, { error: { message: 'Unrecognized argument' } }]) });
-  assert.equal(bad.ok, false); assert.match(bad.reason, /HTTP 400/);
-});
-test('models.json 思考字段（与 WorkBuddy 本地模型写入格式一致）', () => {
-  assert.deepEqual(reasoningFields('high', 'openai'), { supportsReasoning: true, reasoning: { defaultEffort: 'high', supportedEfforts: ['low', 'medium', 'high'], canDisableThinking: true } });
-  assert.deepEqual(reasoningFields('low', 'qwen').compat, { thinkingFormat: 'qwen' });
-  assert.deepEqual(reasoningFields('off'), { supportsReasoning: false });
-  // 关闭后重新导入：旧的 reasoning / compat 要被清掉
-  const old = buildEntry('m', 'https://a/v1', 'k', { owner: 'o', extra: reasoningFields('high', 'deepseek') });
-  const neu = buildEntry('m', 'https://a/v1', 'k', { owner: 'o', extra: { ...reasoningFields('off'), reasoning: undefined, compat: undefined } });
-  const out = JSON.parse(JSON.stringify(mergeModels([old], [neu], 'https://a/v1', 'o', false).models));
-  assert.equal(out[0].supportsReasoning, false); assert.equal(out[0].reasoning, undefined); assert.equal(out[0].compat, undefined);
-});
+const parse = model => Object.values(parseReasoningCapabilities([model]))[0];
+const row = (reasoning, rest = {}) => parse({ id: 'opaque-model', reasoning, ...rest });
 
-import { nearestLevel, probeLevels, WB_LEVELS, EFFORTS } from '../lib/wb-reasoning.mjs';
-
-test('EFFORTS = WorkBuddy 选择器能显示的 5 档，不含 minimal', () => {
+test('WorkBuddy selectable levels remain a client intersection, never a capability default', () => {
   assert.deepEqual(WB_LEVELS, ['low', 'medium', 'high', 'xhigh', 'max']);
-  for (const v of WB_LEVELS) assert.ok(EFFORTS.includes(v));
-  assert.ok(!EFFORTS.includes('minimal'));
+  assert.deepEqual(EFFORTS, ['auto', 'off', ...WB_LEVELS]);
+  const known = row({ supported_efforts: ['max', 'low', 'none'], default_effort: 'max', mandatory: false });
+  const result = reasoningForImport(known);
+  assert.deepEqual(result.levels, ['max', 'low']);
+  assert.equal(result.effort, 'max');
+  assert.deepEqual(result.extra, { supportsReasoning: true, reasoning: { supportedEfforts: ['max', 'low'], defaultEffort: 'max', canDisableThinking: true }, compat: undefined });
 });
 
-test('nearestLevel', () => {
-  assert.equal(nearestLevel('medium', ['low', 'medium', 'high']), 'medium');
-  assert.equal(nearestLevel('low', ['medium', 'high', 'xhigh', 'max']), 'medium');
-  assert.equal(nearestLevel('max', ['low', 'medium', 'high']), 'high');
-});
-
-const fakeLv = (fn) => async (url, init) => { const [st, body] = fn(JSON.parse(init.body)); return { ok: st < 300, status: st, headers: { get: () => 'application/json' }, text: async () => JSON.stringify(body) }; };
-
-test('probeLevels: 无效值报错列出的是全局枚举，必须逐档实测（smaragents gpt-6 实测行为）', async () => {
-  const okSet = new Set(['low', 'medium', 'high', 'xhigh', 'max']);
-  const r = await probeLevels('http://x/v1', 'k', 'gpt-6', { fetchImpl: fakeLv((b) => (okSet.has(b.reasoning_effort) ? [200, { choices: [{ message: { content: 'x' } }] }]
-    : [400, { error: { message: "Invalid value. Supported values are: 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', and 'max'." } }])) });
-  assert.deepEqual(r, { levels: ['low', 'medium', 'high', 'xhigh', 'max'], canDisable: false, how: 'each' });
-});
-
-test('probeLevels: 被拒但不列出 → 逐档试', async () => {
-  const okSet = new Set(['low', 'medium', 'high', 'none']);
-  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv((b) => (okSet.has(b.reasoning_effort) ? [200, { choices: [{ message: { content: 'x' } }] }] : [400, { error: { message: 'Unsupported value for reasoning_effort' } }])) });
-  assert.deepEqual(r, { levels: ['low', 'medium', 'high'], canDisable: true, how: 'each' });
-});
-
-test('probeLevels: 中转站忽略参数 → null（保守默认）', async () => {
-  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv(() => [200, { choices: [{ message: { content: 'x' } }] }]) });
-  assert.equal(r.levels, null); assert.equal(r.how, 'ignored');
-});
-
-test('reasoningFields 写入实测档位与 canDisableThinking', () => {
-  assert.deepEqual(reasoningFields('medium', 'openai', ['low', 'medium', 'high', 'xhigh', 'max'], false),
-    { supportsReasoning: true, reasoning: { defaultEffort: 'medium', supportedEfforts: ['low', 'medium', 'high', 'xhigh', 'max'], canDisableThinking: false } });
-});
-
-test('HTTP 500 的中档和关闭档保持未知，并重试一次', async () => {
-  const counts = {};
-  const r = await probeLevels('http://x/v1', 'k', 'm', { fetchImpl: fakeLv(b => {
-    const v = b.reasoning_effort; counts[v] = (counts[v] || 0) + 1;
-    if (v === 'wb_probe_invalid') return [400, {error:{message:'Invalid reasoning_effort'}}];
-    if (['medium', 'none'].includes(v)) return [500, {error:{message:'upstream failed'}}];
-    return [200, {choices:[{message:{content:'ok'}}]}];
-  }) });
-  assert.equal(r.how, 'partial');
-  assert.deepEqual(r.unknown, ['medium', 'none']);
-  assert.equal(r.canDisable, null);
-  assert.equal(counts.medium, 2);
-});
-
-test('思考探测区分明确拒绝、HTTP 500、通用 HTTP 400 和超时', async () => {
-  for (const status of [400, 401, 429, 500]) {
-    const r = await probeReasoning('http://x/v1','k','m','medium',{fetchImpl:fake(()=>[status,{error:{message:'upstream failed'}}])});
-    assert.equal(r.uncertain,true);
+test('ordinary IDs, missing and malformed declarations never synthesize supported tiers', () => {
+  for (const capability of [undefined, row(undefined), row({ supported_efforts: 'low,high' }), row({ supported_efforts: null })]) {
+    const result = reasoningForImport(capability);
+    assert.equal(result.effort, 'unknown');
+    assert.equal(result.extra.supportsReasoning, undefined);
+    assert.equal(result.extra.reasoning, undefined);
+    assert.equal(result.canDisable, null);
   }
-  const rejected = await probeReasoning('http://x/v1','k','m','medium',{fetchImpl:fake(()=>[400,{error:{message:'reasoning_effort not supported'}}])});
-  assert.equal(rejected.uncertain,false);
-  const timed = await probeReasoning('http://x/v1','k','m','medium',{timeoutMs:1,fetchImpl:async (url,init)=>new Promise((resolve,reject)=>init.signal.addEventListener('abort',()=>reject(Object.assign(new Error(),{name:'AbortError'}))))});
-  assert.equal(timed.uncertain,true);
+});
+
+test('a declared list does not manufacture a medium default or disable support', () => {
+  const result = reasoningForImport(row({ supported_efforts: ['low', 'high'] }));
+  assert.equal(result.effort, 'auto');
+  assert.deepEqual(result.extra.reasoning, { supportedEfforts: ['low', 'high'] });
+  assert.equal(result.canDisable, null);
+});
+
+test('unknown declarations preserve caller-proven existing fields without converting unknown into supported', () => {
+  const previous = { supportsReasoning: true, reasoning: { defaultEffort: 'high', supportedEfforts: ['high', 'max'], canDisableThinking: false }, compat: { thinkingFormat: 'custom' } };
+  const result = reasoningForImport(undefined, 'auto', previous);
+  assert.equal(result.preserved, true);
+  assert.equal(result.capabilityStatus, 'unknown');
+  assert.equal(result.effort, 'high');
+  assert.deepEqual(result.extra, previous);
+  assert.notEqual(result.extra.reasoning, previous.reasoning);
+});
+
+test('explicit empty, toggle and budget declarations clear obsolete discrete tiers instead of reusing them', () => {
+  const previous = { supportsReasoning: true, reasoning: { defaultEffort: 'max', supportedEfforts: ['max'] } };
+  for (const capability of [row({ supported_efforts: [] }), parse({ id: 'm', reasoning: true, reasoning_options: [{ type: 'toggle' }] }), parse({ id: 'm', reasoning: true, reasoning_options: [{ type: 'budget_tokens', min: 1024, max: 8192 }] })]) {
+    const result = reasoningForImport(capability, 'auto', previous);
+    assert.equal(result.extra.reasoning, undefined);
+    assert.equal(result.preserved, undefined);
+  }
+});
+
+test('mandatory reasoning and explicitly unsupported selections cannot be silently changed', () => {
+  const known = row({ supported_efforts: ['low', 'high'], mandatory: true });
+  assert.equal(reasoningForImport(known, 'off').rejected, true);
+  assert.equal(reasoningForImport(known, 'max').rejected, true);
+  assert.equal(reasoningForImport(known, 'low').extra.reasoning.canDisableThinking, false);
+  assert.equal(reasoningForImport(row(false), 'high').rejected, true);
+});
+
+test('an explicit upstream default off is preserved; unknown off does not claim canDisable', () => {
+  const known = row({ supported_efforts: ['none', 'low', 'high'], default_effort: 'none' });
+  const result = reasoningForImport(known);
+  assert.equal(result.effort, 'off');
+  assert.equal(result.extra.supportsReasoning, false);
+  const manual = reasoningForImport(undefined, 'off');
+  assert.equal(manual.extra.supportsReasoning, false);
+  assert.equal(manual.canDisable, null);
+});
+
+test('vendored parser agrees with the shared upstream conformance vectors', () => {
+  const fixtures = JSON.parse(fs.readFileSync(new URL('./reasoning-fixtures.json', import.meta.url), 'utf8'));
+  for (const fixture of fixtures) assert.deepEqual(parse(fixture.model), fixture.expected, fixture.name);
+});
+
+test('vendored router artifacts and all nine shared fixtures match pinned provenance', async () => {
+  const { createHash } = await import('node:crypto');
+  const vendor = new URL('../lib/vendor/', import.meta.url);
+  const provenance = JSON.parse(fs.readFileSync(new URL('router-provenance.json', vendor), 'utf8'));
+  assert.equal(provenance.version, '0.4.1-bridge.2');
+  assert.equal(provenance.sourceRepository, 'https://github.com/xtianowner/llm-protocol-router');
+  assert.equal(provenance.tarball.sha256, '4142810ebddbbca25a9512cbb155ea1d1691e6ff497f810a183773118be68623');
+  for (const artifact of [...provenance.artifacts, provenance.reasoningFixtures]) {
+    const bytes = fs.readFileSync(new URL(artifact.vendored, vendor));
+    assert.equal(createHash('sha256').update(bytes).digest('hex'), artifact.sha256, artifact.source);
+  }
+  const fixtures = JSON.parse(fs.readFileSync(new URL(provenance.reasoningFixtures.vendored, vendor), 'utf8'));
+  assert.equal(provenance.reasoningFixtures.count, 9);
+  assert.equal(fixtures.length, provenance.reasoningFixtures.count);
+  for (const fixture of fixtures) assert.deepEqual(parse(fixture.model), fixture.expected, fixture.name);
 });

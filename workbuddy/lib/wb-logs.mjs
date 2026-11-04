@@ -85,14 +85,14 @@ export function createLogger({ dir = defaultLogDir(), version = 'unknown', polic
       });
       return { name: `logs/${name}`, data: `${lines.join('\n')}\n` };
     }).filter(Boolean);
-    entries.push({ name: 'diagnostics.json', data: JSON.stringify(sanitize({ exportedAt: now().toISOString(), version, sessionId, platform: process.platform, arch: process.arch, osRelease: os.release(), runtime: process.version, packaged: !!process.pkg, retention: limits, invalidLines, ...diagnostics }), null, 2) });
+    entries.push({ name: 'diagnostics.json', data: JSON.stringify(sanitize({ exportedAt: now().toISOString(), version, sessionId, platform: process.platform, arch: process.arch, osRelease: os.release(), runtime: process.version, packaged: !!process.pkg || process.env.WB_PACKAGED_LAUNCHER === '1', retention: limits, invalidLines, ...diagnostics }), null, 2) });
     entries.push({ name: 'README.txt', data: 'SmarAgents WorkBuddy Relay local diagnostic logs.\nIncludes retained runs only (up to 30 days / 40 MiB).\nNo API keys, request/response bodies, WorkBuddy config copies or conversations are collected.\nMatch sessionId and operationId with the failure shown in the tool.\n' });
     const data = zipFiles(entries);
     record('logs.export.completed', { files: entries.length, bytes: data.length, invalidLines });
     return { data, filename: `workbuddy-relay-logs-${now().toISOString().replace(/[:.]/g, '-')}.zip` };
   }
   const logger = { sessionId, record, status, sanitize, exportBundle, addSecret: (s) => { if (typeof s === 'string' && s.trim().length >= 4) secrets.add(s.trim()); } };
-  record('session.started', { platform: process.platform, arch: process.arch, runtime: process.version, packaged: !!process.pkg });
+  record('session.started', { platform: process.platform, arch: process.arch, runtime: process.version, packaged: !!process.pkg || process.env.WB_PACKAGED_LAUNCHER === '1' });
   return logger;
 }
 

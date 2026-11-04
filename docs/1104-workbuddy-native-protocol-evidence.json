@@ -1,0 +1,64 @@
+{
+  "checkedAt": "2026-11-04T05:16:29.311586+00:00",
+  "scope": "Read-only installed program source; no WorkBuddy user configuration or runtime changes",
+  "conclusion": "Chat custom-model configuration confirmed; no verified Responses/Anthropic native custom-model adapter. useCustomProtocol is URL passthrough only.",
+  "files": [
+    {
+      "path": "/Applications/WorkBuddy.app/Contents/Resources/app.asar",
+      "bytes": 96506567,
+      "sha256": "a7eff702411704d140d7d8d706fe9e711d9b13e304928481c9eba0af9c06f731",
+      "evidence": [
+        {
+          "needle": "isValidLocalCustomModel",
+          "byteOffset": 74715341,
+          "excerpt": "d 0;if(typeof e==`string`){let t=e.trim();if(t===``)return;let n=Number(t);return Number.isFinite(n)?n:void 0}}function isValidLocalCustomModel(e){if(!isRecord(e)||typeof e.id!=`string`||e.id.trim()===``)return!1;let isTypeOrAbsent=(e,t)=>e===void 0?!0:t===`object`?isRecord(e):typeof e===t,isNumericOrAbsent=e=>e===void 0||coerceOptionalNumber(e)!==void 0;return[`name`,`vendor`,`url`,`apiKey`].every(t=>isTypeOrAbsent(e[t],`string`))&&[`maxInputTokens`,`maxOutputTokens`,`temperature`].every(t=>isNumericOrAbsent(e[t]))&&[`supportsToolCall`,`supportsImages`,`supportsReasoning`,`onlyReasoning`,`useCustomProtocol`].every(t=>isTypeOrAbsent(e[t],`boolean`))&&isTypeOrAbsent(e.reasoning,`object`)}function getLocalCustomModelRequiredFieldIssues(e){if(!isRecord(e))return[`id`,`url`,`apiKey`];let isFilledString=e=>typeof "
+        },
+        {
+          "needle": "useCustomProtocol?r",
+          "byteOffset": 89049541,
+          "excerpt": "tps:`?{error:failure(`INVALID_CONFIG`,`\\u63A5\\u53E3\\u5730\\u5740\\u4EC5\\u652F\\u6301 HTTP \\u6216 HTTPS`)}:{modelId:n,url:e.useCustomProtocol?r:normalizeChatCompletionsUrl(r),apiKey:typeof e.apiKey==`string`&&e.apiKey.trim()||void 0}}function normalizeChatCompletionsUrl(e){let n=e.search(/[?#]/),r=n>=0?e.slice(n):``,i=n>=0?e.slice(0,n):e;for(i=i.replace(/\\/+$/,``);i.endsWith(`/chat/completions`);)i=i.slice(0,-17);return`${i}/chat/completions${r}`}async function probeResponse(e){if((e.headers.get(`content-type`)?.toLowerCase()??``).includes(`application/json`))return probeJsonPayload(await e.text().catch(()=>``));let n=e.body?.getReader();if(!n)return probeSsePayload(await e.text().catch(()=>``));let r=new TextDecoder,i=``;try{for(;;){let{done:e,value:a}=await n.read();if(e)break;i+=r.decode(a,{stream:!0});let o=p"
+        },
+        {
+          "needle": "mapProductModelReasoning",
+          "byteOffset": 89063200,
+          "excerpt": "ost / lexiangHost / lexiangMCP / tdriveHost) on the server.`)}function mapProductLanguageModel(e){return{...e,reasoning:mapProductModelReasoning(e.reasoning)}}function mapProductModelReasoning(e){if(e)return{effort:e.effort,defaultEffort:e.defaultEffort,supportedEfforts:e.supportedEfforts,summary:e.summary,canDisableThinking:e.canDisableThinking}}function pickString(...e){for(let n of e)if(typeof n==`string`&&n.trim())return n.trim()}function pickExpertType(...e){let n=pickString(...e);return n===`skill`||n===`agent`||n===`plugin`||n===`team`?n:void 0}function pickBoolean(...e){for(let n of e){if(typeof n==`boolean`)return n;if(typeof n==`string`){let e=n.trim().toLowerCase();if(e===`true`)return!0;if(e===`false`)return!1}}}function pickNumber(...e){for(let n of e){if(typeof n==`number`&&Number.isFinite(n))re"
+        }
+      ],
+      "adapterTokens": {
+        "nativeWireAdapter": -1,
+        "wireAdapter": -1,
+        "wireProtocol": -1,
+        "apiProtocol": -1,
+        "customProtocol": -1
+      }
+    },
+    {
+      "path": "/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs",
+      "bytes": 9485334,
+      "sha256": "9eacdcdaaf3d53877ca4eac53836a446770b9a40f5dc6382b43230c73fdc5448",
+      "evidence": [
+        {
+          "needle": "if(S.useCustomProtocol)",
+          "byteOffset": 3684693,
+          "excerpt": "G?.model&&(h=G.model),h)try{let t=await this.productManager.waitConfiguration();if(S=t.models?.find(t=>t.id===h),S?.url)if(S.useCustomProtocol)A=S.url,this.logger.info(`Using custom URL for model ${h}: ${A} (useCustomProtocol=true, URL passthrough)`);else{let t=this.isCustomModelRequest(h,S);A=t?this.normalizeChatCompletionsUrl(S.url):S.url,this.logger.info(`Using custom URL for model ${h}: ${A}(raw:${S?.url})${t?\" (custom model, ensured /chat/completions)\":\"\"}`)}}catch(t){}let V=!this.isCustomModelRequest(h,S)||process.env[ma.qL]===mm.ProductEnviroment.Selfhosted,J=N.requestOptions?.providerData;if(J&&V){let t=this.mergeRequestProviderData(G,J);t!==G&&(G=t,z=!0)}let Y=N.requestOptions?.requestExtraFieldsMeta;if(Y&&V&&this.injectRequestExtraFieldsMeta(G,Y)&&(z=!0),!S?.useCustomProtocol&&/\\/chat\\/completions(?"
+        },
+        {
+          "needle": "CustomModelsProductProvider",
+          "byteOffset": 8713208,
+          "excerpt": "t&&\"function\"==typeof Reflect.metadata)return Reflect.metadata(t,i)};Object.defineProperty(i,\"__esModule\",{value:!0}),i.CustomModelsProductProvider=void 0;let p=n(88523),h=n(51147),S=n(1226),E=n(79814),A=n(79896),R=n(70857),P=n(16928),I=n(55119),O=n(18629),M=class{constructor(){this.scope=\"runtime\",this.priority=O.ProductProviderPriority.ENV+1e3,this.DEBOUNCE_DELAY=1e3}init(){\"1\"!==process.env.CODEBUDDY_DISABLE_CUSTOM_MODELS_FILE&&this.setupFileWatchers()}setupFileWatchers(){if(this.workspace?.workspaceFolders&&this.workspace.workspaceFolders.length>0){let t=this.workspace.workspaceFolders[0].uri,i=E.URI.parse(`${t.path}/${h.WORKSPACE_DATA_DIR_NAME}/models.json`);(0,A.existsSync)(i.fsPath)&&this.watchFile(i.fsPath,\"project\")}}isWorkBuddyProduct(t){return(t||\"\").toLowerCase().includes(\"workbuddy\")}getUserConfi"
+        }
+      ],
+      "adapterTokens": {
+        "nativeWireAdapter": -1,
+        "wireAdapter": -1,
+        "wireProtocol": -1,
+        "apiProtocol": -1,
+        "customProtocol": -1
+      }
+    }
+  ],
+  "recheckCommands": [
+    "shasum -a 256 /Applications/WorkBuddy.app/Contents/Resources/app.asar /Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs",
+    "/opt/miniconda3/bin/python -c 'from pathlib import Path; b=Path(\"/Applications/WorkBuddy.app/Contents/Resources/app.asar.unpacked/cli/dist/codebuddy-lite-wb.mjs\").read_bytes(); i=b.find(b\"if(S.useCustomProtocol)\"); print(i); print(b[i-120:i+700].decode())'"
+  ]
+}

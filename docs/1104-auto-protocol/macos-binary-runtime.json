@@ -1,0 +1,32 @@
+[
+  {
+    "args": [
+      "--launcher-self-test"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 640,
+    "temporaryEntriesAfter": [],
+    "stdout": "{\"applicationSHA256\":\"baa4062f78328c6c317ab057b8264130b7a824c29f820a809c5dd5f2130f6d24\",\"applicationStarted\":false,\"arch\":\"arm64\",\"elapsedMs\":624,\"platform\":\"darwin\",\"runtimeSHA256\":\"90ee1d271eec831fd38d16c78c19cc36809548ac5cd034a6e0c10c4389c881ef\",\"runtimeVersion\":\"v24.12.0\",\"temporaryDirectoryRemoved\":true,\"version\":\"2.5.3\"}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "--version"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 532,
+    "temporaryEntriesAfter": [],
+    "stdout": "2.5.3\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "--help"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 493,
+    "temporaryEntriesAfter": [],
+    "stdout": "WorkBuddy WorkBuddy Relay 2.5.3\n  无参数双击：打开本地网页，填写 API Key 并选择模型。\n  --key <key>             API Key（也可用 WB_RELAY_KEY 环境变量）\n  --web                   打开本地网页\n  --interactive           终端填写 Key\n  --models a,b,c          指定模型\n  --effort <effort>       auto | off | low | medium | high | xhigh | max\n  --protocol <protocol>   auto | openai-chat | openai-responses | anthropic-messages\n  --export-logs <zip>     导出本机历史日志（无需 WorkBuddy 或 Key）\n  --config <path>         models.json 路径\n  --no-probe              跳过生成连通性探测，仍读取上游声明\n  --no-launch             不启动 WorkBuddy\n  --dry-run               预览，不写入配置\n  --json                  JSON 结果\n  开源开发接口：--url <base>、--platform-token <token>、--key-id <id|new>。\n  平台默认地址：https://124.223.174.61:3443/v1\n",
+    "stderr": ""
+  }
+]

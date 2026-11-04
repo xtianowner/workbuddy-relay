@@ -1,0 +1,16 @@
+WorkBuddy WorkBuddy Relay 2.5.3
+  无参数双击：打开本地网页，填写 API Key 并选择模型。
+  --key <key>             API Key（也可用 WB_RELAY_KEY 环境变量）
+  --web                   打开本地网页
+  --interactive           终端填写 Key
+  --models a,b,c          指定模型
+  --effort <effort>       auto | off | low | medium | high | xhigh | max
+  --protocol <protocol>   auto | openai-chat | openai-responses | anthropic-messages
+  --export-logs <zip>     导出本机历史日志（无需 WorkBuddy 或 Key）
+  --config <path>         models.json 路径
+  --no-probe              跳过生成连通性探测，仍读取上游声明
+  --no-launch             不启动 WorkBuddy
+  --dry-run               预览，不写入配置
+  --json                  JSON 结果
+  开源开发接口：--url <base>、--platform-token <token>、--key-id <id|new>。
+  平台默认地址：https://124.223.174.61:3443/v1

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import readline from 'node:readline/promises';
 import crypto from 'node:crypto';
-import { VERSION, normalizeBase, discoverModels, defaultConfigPath, pickChatModels } from './lib/wb-core.mjs';
+import { VERSION, PROTOCOLS, assertClientProtocol, normalizeBase, discoverModels, defaultConfigPath, pickChatModels } from './lib/wb-core.mjs';
 import { PLATFORM_BASE } from './lib/wb-brand.mjs';
 import { acquireCredentials } from './lib/wb-relay.mjs';
 import { EFFORTS } from './lib/wb-reasoning.mjs';
@@ -28,9 +28,10 @@ if (args.help) {
   --interactive           终端填写 Key
   --models a,b,c          指定模型
   --effort <effort>       ${EFFORTS.join(' | ')}
+  --protocol <protocol>   ${PROTOCOLS.join(' | ')}
   --export-logs <zip>     导出本机历史日志（无需 WorkBuddy 或 Key）
   --config <path>         models.json 路径
-  --no-probe              跳过可用性和思考探测
+  --no-probe              跳过生成连通性探测，仍读取上游声明
   --no-launch             不启动 WorkBuddy
   --dry-run               预览，不写入配置
   --json                  JSON 结果
@@ -96,6 +97,7 @@ async function main() {
     key = (await rl.question('WorkBuddy API Key: ')).trim(); closeAsk();
     logger.addSecret(key); logger.record('key.submitted', { present: !!key }, 'info', operationId);
   }
+  const protocol = assertClientProtocol(args.protocol ?? 'auto');
   if (!key && platformToken) {
     const got = await acquireCredentials({ site: base, platformToken, type: args.relayType || 'auto', userId: args.platformUserId, keyName: args.keyName, choose: args.keyId ? async () => args.keyId === 'new' ? 'new' : Number(args.keyId) : undefined });
     key = got.apiKey; base = got.baseUrl; logger.addSecret(key);
@@ -112,7 +114,7 @@ async function main() {
   const selected = pickChatModels([...new Set(ids)], Math.max(1, Math.min(500, Number(args.maxModels) || 12)));
   if (!selected.length) throw new Error('没有可导入的模型');
   if (!args.noLaunch && !app.running && process.env.WB_SKIP_DETECT !== '1') logger.record('workbuddy.launched', { launched: launch(app) });
-  const result = await runImport({ base, key, models: selected.map((id) => ({ id, effort })), configPath: args.config, owner: args.owner, prune: !!args.prune, skipProbe: !!args.noProbe || !!args.dryRun, dryRun: !!args.dryRun, vendor: args.vendor, prefix: args.namePrefix, logger, operationId });
+  const result = await runImport({ base, key, protocol, models: selected.map((id) => ({ id, effort })), configPath: args.config, owner: args.owner, prune: !!args.prune, skipProbe: !!args.noProbe || !!args.dryRun, dryRun: !!args.dryRun, vendor: args.vendor, prefix: args.namePrefix, logger, operationId });
   if (!result.ok) throw new Error(result.fatal);
   if (!args.noLaunch && !args.dryRun && process.env.WB_SKIP_DETECT !== '1') focus();
   if (args.json) console.log(JSON.stringify(logger.sanitize(result), null, 2));

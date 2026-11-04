@@ -1,0 +1,29 @@
+[
+  {
+    "args": [
+      "--launcher-self-test"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 541,
+    "temporaryEntriesAfter": [],
+    "stdout": "{\"applicationSHA256\":\"79000879edb5a58e7524071b5c1af2ba06f3fef7f20c32842c74afa0b6aec033\",\"applicationStarted\":false,\"arch\":\"arm64\",\"elapsedMs\":529,\"platform\":\"darwin\",\"runtimeSHA256\":\"90ee1d271eec831fd38d16c78c19cc36809548ac5cd034a6e0c10c4389c881ef\",\"runtimeVersion\":\"v24.12.0\",\"temporaryDirectoryRemoved\":true,\"version\":\"2.5.1\"}\n"
+  },
+  {
+    "args": [
+      "--version"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 507,
+    "temporaryEntriesAfter": [],
+    "stdout": "2.5.1\n"
+  },
+  {
+    "args": [
+      "--help"
+    ],
+    "exitCode": 0,
+    "elapsedMs": 495,
+    "temporaryEntriesAfter": [],
+    "stdout": "WorkBuddy WorkBuddy Relay 2.5.1\n  无参数双击：打开本地网页，填写 API Key 并选择模型。\n  --key <key>             API Key（也可用 WB_RELAY_KEY 环境变量"
+  }
+]

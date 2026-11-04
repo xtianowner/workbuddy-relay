@@ -1,0 +1,24 @@
+[
+  {
+    "platform": "windows",
+    "binary": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/candidate-2.5.3-protocol/WorkBuddy-Relay-Import-windows-x64.exe",
+    "binaryBytes": 37839360,
+    "binarySHA256": "92d27206f66323b01000af5ff5aa823510e45b23019c4592f2ed361c46c83ab5",
+    "zip": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/candidate-2.5.3-protocol/workbuddy-relay-2.5.3-win.zip",
+    "zipBytes": 35814605,
+    "zipSHA256": "d55d2f4358c7c2988f3b4c855901da3e8326c6da08efe22c297de34077334d74",
+    "zipBinaryIdentical": true,
+    "applicationSHA256": "baa4062f78328c6c317ab057b8264130b7a824c29f820a809c5dd5f2130f6d24"
+  },
+  {
+    "platform": "macos",
+    "binary": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/candidate-2.5.3-protocol/WorkBuddy-Relay-Import-macos-arm64",
+    "binaryBytes": 42122624,
+    "binarySHA256": "75743ad3f36291781196af38a028243c812fbaca37fa0671170505d68e335dbd",
+    "zip": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/candidate-2.5.3-protocol/workbuddy-relay-2.5.3-mac-arm64.zip",
+    "zipBytes": 40078527,
+    "zipSHA256": "f5ffd4c97b5ccac3731d2ac8a342e1cfcd917e1b72e9768be6fa8c47ccd7fd10",
+    "zipBinaryIdentical": true,
+    "applicationSHA256": "baa4062f78328c6c317ab057b8264130b7a824c29f820a809c5dd5f2130f6d24"
+  }
+]

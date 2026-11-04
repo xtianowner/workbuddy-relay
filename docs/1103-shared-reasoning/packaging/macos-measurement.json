@@ -1,0 +1,20 @@
+{
+  "version": "2.5.1",
+  "platform": "macos",
+  "arch": "arm64",
+  "file": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/packaging-measurement/WorkBuddy-Relay-Import-macos-arm64",
+  "size": 42073088,
+  "sha256": "998cea8714b39b72a365189b7326d0bdfd006a395ab592c00f36167944082cba",
+  "runtime": {
+    "size": 117655968,
+    "sha256": "90ee1d271eec831fd38d16c78c19cc36809548ac5cd034a6e0c10c4389c881ef"
+  },
+  "application": {
+    "size": 74266,
+    "sha256": "79000879edb5a58e7524071b5c1af2ba06f3fef7f20c32842c74afa0b6aec033"
+  },
+  "runtimeCompressedBytes": 38814093,
+  "applicationCompressedBytes": 26411,
+  "offlineRuntimeIncluded": true,
+  "signed": "ad-hoc"
+}

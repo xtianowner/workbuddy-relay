@@ -1,7 +1,7 @@
 /** Local-only UI. One fixed platform, one API key, authenticated diagnostic downloads. */
 import http from 'node:http';
 import crypto from 'node:crypto';
-import { VERSION, discoverModels, pickChatModels } from './wb-core.mjs';
+import { VERSION, PROTOCOLS, assertClientProtocol, discoverModels, pickChatModels } from './wb-core.mjs';
 import { PLATFORM_NAME, PLATFORM_SITE, PLATFORM_BASE } from './wb-brand.mjs';
 import { familyOf, EFFORTS, EFFORT_LABEL } from './wb-reasoning.mjs';
 import { getLogger } from './wb-logs.mjs';
@@ -65,19 +65,22 @@ export function startWebServer({ app, configPath, fetchImpl = fetch, idleMs = 30
         if (!ids.length) throw fail('此 Key 下没有可导入的模型，请确认平台模型权限', 'NO_MODELS');
         state.key = value; state.models = ids;
         logger.record('models.discovered', { count: ids.length, models: ids }, 'info', operationId);
-        return { models: ids.map((id, i) => ({ id, family: familyOf(id), suggest: 'auto', checked: i < 12 })), operationId };
+        return { models: ids.map((id, i) => ({ id, family: familyOf(id), suggest: 'auto', checked: i < 12, capability: found.capabilities?.[id] || null })), operationId };
       } finally { state.changingKey = false; }
     },
-    'POST /api/import': async ({ models }, operationId) => {
+    'POST /api/import': async ({ models, protocol = 'auto' }, operationId) => {
       if (state.importing || state.changingKey) throw fail('正在处理上一个操作，请稍候', 'BUSY', 409);
       if (!state.key) throw fail('请先填写 Key 并读取模型', 'KEY_REQUIRED');
       if (app?.installed === false && !app?.configExists) throw fail('请先安装 WorkBuddy，然后重新打开本工具', 'WORKBUDDY_NOT_INSTALLED');
-      if (!Array.isArray(models) || !models.length || models.length > 500 || models.some((m) => !state.models.includes(m?.id) || !EFFORTS.includes(m?.effort))) throw fail('请从列表中选择模型和思考强度', 'INVALID_MODELS');
-      const list = [...new Map(models.map((m) => [m.id, { id: m.id, effort: m.effort }])).values()];
-      const job = { id: crypto.randomUUID(), operationId, status: 'running', phase: 'availability', rows: new Map(list.map((m) => [m.id, { id: m.id, effortWanted: m.effort, effort: 'off', usable: true, phase: 'queued', status: 'queued', note: '' }])), result: null, error: null };
+      if (!PROTOCOLS.includes(protocol)) throw fail('协议选择无效', 'INVALID_PROTOCOL');
+      if (!Array.isArray(models) || !models.length || models.length > 500 || models.some((m) => !state.models.includes(m?.id) || !EFFORTS.includes(m?.effort) || (m?.protocol && !PROTOCOLS.includes(m.protocol)))) throw fail('请从列表中选择模型、协议和思考强度', 'INVALID_MODELS');
+      const list = [...new Map(models.map((m) => [m.id, { id: m.id, effort: m.effort, protocol: m.protocol || protocol }])).values()];
+      assertClientProtocol(protocol);
+      list.forEach(model => assertClientProtocol(model.protocol));
+      const job = { id: crypto.randomUUID(), operationId, status: 'running', phase: 'availability', rows: new Map(list.map((m) => [m.id, { id: m.id, effortWanted: m.effort, effort: 'unknown', usable: true, phase: 'queued', status: 'queued', note: '' }])), result: null, error: null };
       state.importing = true; state.importJob = job;
       // Start immediately but return the job id so the browser can render each model as it finishes.
-      void runImport({ ...importOptions, base: PLATFORM_BASE, key: state.key, models: list, configPath, fetchImpl, logger, operationId,
+      void runImport({ ...importOptions, base: PLATFORM_BASE, key: state.key, protocol, models: list, configPath, fetchImpl, logger, operationId,
         onProgress: (row) => { const previous = job.rows.get(row.id) || {}; job.rows.set(row.id, { ...previous, ...row }); job.phase = row.phase || (row.status === 'testing' ? 'testing' : job.phase); },
       }).then(({ preview, ...result }) => { job.status = 'completed'; job.phase = 'complete'; job.result = result; state.importing = false; })
         .catch((error) => { job.status = 'failed'; job.phase = error.stage || 'failed'; job.error = { message: error.message, code: error.code || 'IMPORT_FAILED' }; state.importing = false; });

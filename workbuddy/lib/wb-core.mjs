@@ -13,10 +13,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { getLogger, loggedFetch } from './wb-logs.mjs';
+import { parseReasoningCapabilities } from './vendor/reasoning.mjs';
+import { detectProtocol, resolveEndpoint } from './vendor/protocol-discovery.mjs';
 
-export const VERSION = '2.5.1';
+export const VERSION = '2.5.3';
 export const DEFAULT_INPUT_TOKENS = 200000;
 export const DEFAULT_OUTPUT_TOKENS = 8192;
+export const PROTOCOLS = ['auto', 'openai-chat', 'openai-responses', 'anthropic-messages'];
 const UA = `wb-setup/${VERSION}`;
 
 /* ---------------- URL ---------------- */
@@ -60,6 +63,31 @@ const authHeaders = (key) => ({
   'User-Agent': UA,
 });
 
+export function normalizeProtocol(value) {
+  const protocol = String(value ?? 'auto').trim().toLowerCase();
+  if (protocol === 'auto') return protocol;
+  if (['chat', 'chat_completions', 'openai-chat-completions', 'openai-chat'].includes(protocol)) return 'openai-chat';
+  if (['responses', 'openai-responses'].includes(protocol)) return 'openai-responses';
+  if (['anthropic', 'messages', 'anthropic-messages'].includes(protocol)) return 'anthropic-messages';
+  throw Object.assign(new Error('协议选择无效'), { code: 'INVALID_PROTOCOL' });
+}
+
+const routerProtocol = protocol => ({ 'openai-chat': 'chat_completions', 'openai-responses': 'responses', 'anthropic-messages': 'anthropic', auto: 'auto' })[normalizeProtocol(protocol)];
+
+/** Selection does not imply a WorkBuddy native transport adapter exists. */
+export function assertClientProtocol(protocol) {
+  const selected = normalizeProtocol(protocol);
+  if (selected !== 'auto' && selected !== 'openai-chat') throw Object.assign(new Error('WorkBuddy 自定义模型尚未验证该原生协议；未发送请求、未写入配置'), { code: 'CLIENT_PROTOCOL_UNVERIFIED' });
+  return selected;
+}
+
+export function protocolEndpoint(base, protocol) {
+  const type = routerProtocol(protocol);
+  if (type === 'auto') throw Object.assign(new Error('协议尚未确认'), { code: 'PROTOCOL_UNVERIFIED' });
+  // Router Anthropic canonical base excludes /v1; product bases include it.
+  return resolveEndpoint(type, type === 'anthropic' ? base.replace(/\/v1\/?$/i, '') : base);
+}
+
 export async function mapLimit(items, limit, fn) {
   const out = new Array(items.length);
   let cursor = 0;
@@ -81,7 +109,7 @@ export async function discoverModels(base, key, timeoutMs = 15000, { fetchImpl =
     const url = `${b}/models`;
     tried.push(url);
     try {
-      const res = await request(url, { headers: authHeaders(key), signal: AbortSignal.timeout(timeoutMs) });
+      const res = await request(url, { method: 'GET', headers: authHeaders(key), redirect: 'manual', signal: AbortSignal.timeout(timeoutMs) });
       const text = await res.text();
       if (!res.ok) {
         if (res.status === 401 || res.status === 403) {
@@ -92,7 +120,7 @@ export async function discoverModels(base, key, timeoutMs = 15000, { fetchImpl =
       let json;
       try { json = JSON.parse(text); } catch { continue; }
       const ids = extractIds(json);
-      if (ids.length) return { base: b, ids, tried };
+      if (ids.length) return { base: b, ids, capabilities: parseReasoningCapabilities(json), tried };
     } catch (error) { logger.record('models.discovery.failed', { error }, 'error', operationId); }
   }
   return { fatal: '无法从 /models 获取模型列表（该站点可能未实现此接口）', tried };
@@ -102,28 +130,30 @@ export function extractIds(json) {
   const arr = Array.isArray(json) ? json
     : Array.isArray(json?.data) ? json.data
       : Array.isArray(json?.models) ? json.models : [];
-  return arr.map((x) => (typeof x === 'string' ? x : x?.id)).filter((x) => typeof x === 'string' && x.trim());
+  return [...new Set(arr.map((x) => (typeof x === 'string' ? x : x?.id || x?.slug))
+    .filter((x) => typeof x === 'string' && x.trim() && x.trim().length <= 256).map((x) => x.trim()))].slice(0, 1000);
 }
 
-/** 一次极小请求：同时验证 Key、端点路径、模型可用性 */
-export async function probe(base, key, model, timeoutMs = 30000, { fetchImpl = fetch, logger = getLogger(VERSION), operationId } = {}) {
+/** Shared router probe; restrict auto detection to verified WorkBuddy transports. */
+export async function probe(base, key, model, timeoutMs = 30000, { protocol = 'auto', fetchImpl = fetch, logger = getLogger(VERSION), operationId } = {}) {
+  const selected = assertClientProtocol(protocol);
   logger.addSecret(key);
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    const res = await loggedFetch(fetchImpl, logger, operationId)(`${base}/chat/completions`, {
-      method: 'POST',
-      headers: authHeaders(key),
-      signal: ctrl.signal,
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1, stream: false }),
+    const result = await detectProtocol({
+      baseUrl: base, apiKey: key, model, selection: routerProtocol(selected),
+      allowedTypes: ['chat_completions'], timeoutMs,
+      fetch: loggedFetch(fetchImpl, logger, operationId),
     });
-    const text = await res.text();
-    if (res.ok) return validateChatResponse(res.headers.get('content-type'), text);
-    if (res.status === 401 || res.status === 403) return { ok: false, fatal: `鉴权失败 (HTTP ${res.status})`, body: text.slice(0, 160) };
-    return { ok: false, reason: `HTTP ${res.status}`, body: text.slice(0, 160) };
-  } catch (e) {
-    return { ok: false, reason: e.name === 'AbortError' ? '超时' : String(e.message).slice(0, 120) };
-  } finally { clearTimeout(timer); }
+    return { ...result, protocol: 'openai-chat', detection: selected };
+  } catch (error) {
+    return { ok: false, code: error.code, reason: error.message, attempts: error.attempts,
+      ...([401, 403].includes(error.statusCode) ? { fatal: `鉴权失败 (HTTP ${error.statusCode})` } : {}) };
+  }
+}
+
+export async function probeProtocol(base, key, model, protocol, timeoutMs = 30000, options = {}) {
+  if (normalizeProtocol(protocol) === 'auto') throw Object.assign(new Error('请选择明确协议'), { code: 'PROTOCOL_UNVERIFIED' });
+  return probe(base, key, model, timeoutMs, { ...options, protocol });
 }
 
 /** 严格校验：2xx 还不够，必须是 JSON 且含 choices 数组（HTML 200 = 打到了前端页面） */
@@ -131,7 +161,7 @@ export function validateChatResponse(contentType, text) {
   const ct = String(contentType || '').toLowerCase();
   if (!ct.includes('json')) return { ok: false, reason: `非 JSON 响应（${ct || '无 content-type'}，地址可能指向网页）`, body: text.slice(0, 80) };
   let j; try { j = JSON.parse(text); } catch { return { ok: false, reason: '响应不是合法 JSON', body: text.slice(0, 80) }; }
-  if (!Array.isArray(j?.choices)) return { ok: false, reason: '响应缺少 choices', body: text.slice(0, 120) };
+  if (!Array.isArray(j?.choices) || !j.choices.some(choice => choice && typeof choice.message === 'object' && choice.message !== null)) return { ok: false, reason: '响应缺少有效 choices.message', body: text.slice(0, 120) };
   return { ok: true };
 }
 
@@ -177,12 +207,15 @@ export function readConfig(file) {
   }
 }
 
-export function buildEntry(id, base, key, { vendor = 'Custom', prefix = '', owner = '', inputTokens, outputTokens, supportsImages = false, supportsReasoning = false, extra = {} } = {}) {
+export function buildEntry(id, base, key, { protocol = 'openai-chat', vendor = 'Custom', prefix = '', owner = '', inputTokens, outputTokens, supportsImages = false, supportsReasoning = false, extra = {} } = {}) {
+  const selectedProtocol = assertClientProtocol(protocol);
+  if (selectedProtocol === 'auto') throw Object.assign(new Error('协议尚未确认，未写入配置'), { code: 'PROTOCOL_UNVERIFIED' });
   return {
     id,
     name: prefix ? `${prefix}${id}` : id,
     vendor,
-    url: `${base}/chat/completions`,
+    url: protocolEndpoint(base, selectedProtocol),
+    wbProtocol: selectedProtocol,
     apiKey: key,
     maxInputTokens: inputTokens || DEFAULT_INPUT_TOKENS,
     maxOutputTokens: outputTokens || DEFAULT_OUTPUT_TOKENS,
@@ -201,19 +234,19 @@ export function mergeModels(existing, incoming, base, owner, prune) {
   const host = hostOf(base);
   // 自动修复 v2.0.0 及更早写入的坏条目（仅限本工具写入的、同站点的）：通配符 id、url 缺 /vN（指向网页）
   const broken = (x) => x && owner && String(x.wbImportOwner || '').startsWith('wb-setup') && hostOf(x.url || '') === host
-    && (/[*?]/.test(x.id) || !/\/v\d+[a-z]*\/chat\/completions$/i.test(x.url || ''));
+    && x.url === `${base.replace(/\/v\d+[a-z]*$/i, '')}/chat/completions`;
   const fresh = new Set(incoming.map((m) => m.id));
   result = result.filter((x) => { if (broken(x) && !fresh.has(x.id)) { pruned.push(x.id); return false; } return true; });
   if (prune && owner) {
     const keep = new Set(incoming.map((m) => m.id));
     result = result.filter((x) => {
-      const mine = x && x.wbImportOwner === owner && !keep.has(x.id);
+      const mine = x && x.wbImportOwner === owner && x.url === `${base}/chat/completions` && !keep.has(x.id);
       if (mine) pruned.push(x.id);
       return !mine;
     });
   }
   for (const m of incoming) {
-    const hit = result.findIndex((x) => x && x.id === m.id && hostOf(x.url || '') === host);
+    const hit = result.findIndex((x) => x && x.id === m.id && (x.url === m.url || broken(x)));
     if (hit >= 0) { result[hit] = { ...result[hit], ...m }; updated.push(m.id); }
     else if (result.some((x) => x && x.id === m.id)) skipped.push(`${m.id}(同名但属于其它站点，已跳过)`);
     else { result.push(m); added.push(m.id); }

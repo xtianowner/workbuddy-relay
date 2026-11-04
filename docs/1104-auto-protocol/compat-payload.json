@@ -1,0 +1,39 @@
+{
+  "project": "candidate-2.5.3-protocol",
+  "cmd": "./WorkBuddy-Relay-Import-macos-arm64 --version",
+  "profile": "universal",
+  "detected_sites": {},
+  "delivery": {
+    "mode": "worktree",
+    "commit": "3c7fe94",
+    "dirty": true,
+    "files": 6,
+    "bytes": 155873280,
+    "note": "含未提交改动"
+  },
+  "cells": [],
+  "l0_risks": [],
+  "l0_ran": true,
+  "l2": {
+    "status": "not_run",
+    "ok": false,
+    "exit_code": null,
+    "arch": "",
+    "repo": "",
+    "run_id": "",
+    "github_run_id": "",
+    "url": "",
+    "runtime_version": "",
+    "duration_ms": 0,
+    "billable_ms": 0,
+    "output_tail": "",
+    "hint": "",
+    "error": ""
+  },
+  "duration_ms": 7,
+  "log_dir": "/Users/tian/Documents/00-Tian/00-Tian-Project/env-Tian/state/logs/20261104-132521-candidate-2.5.3-protocol",
+  "ok": true,
+  "exit_code": 0,
+  "summary": "0/0 通过",
+  "l2_status": "not_run"
+}

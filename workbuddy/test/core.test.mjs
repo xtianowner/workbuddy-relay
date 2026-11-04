@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { backupName,
   normalizeBase, candidates, extractIds, mergeModels, pickChatModels,
-  buildEntry, writeConfig, readConfig,
+  buildEntry, writeConfig, readConfig, protocolEndpoint, normalizeProtocol,
 } from '../lib/wb-core.mjs';
 
 test('normalizeBase 去掉端点、query、尾斜杠，并补协议', () => {
@@ -17,6 +17,18 @@ test('normalizeBase 去掉端点、query、尾斜杠，并补协议', () => {
   assert.equal(normalizeBase('https://www.relay.example.com/chat/completions'), 'https://www.relay.example.com/v1');
   assert.equal(normalizeBase('https://a.com/v1/models'), 'https://a.com/v1');
   assert.equal(normalizeBase('  '), null);
+});
+
+test('native protocol endpoints are explicit and never converted', () => {
+  assert.equal(normalizeProtocol('chat'), 'openai-chat');
+  assert.equal(normalizeProtocol('responses'), 'openai-responses');
+  assert.equal(normalizeProtocol('anthropic'), 'anthropic-messages');
+  assert.equal(protocolEndpoint('https://relay.invalid/v1', 'openai-chat'), 'https://relay.invalid/v1/chat/completions');
+  assert.equal(protocolEndpoint('https://relay.invalid/v1', 'openai-responses'), 'https://relay.invalid/v1/responses');
+  assert.equal(protocolEndpoint('https://relay.invalid/v1', 'anthropic-messages'), 'https://relay.invalid/v1/messages');
+  assert.throws(() => buildEntry('m', 'https://relay.invalid/v1', 'k', { protocol: 'anthropic' }), { code: 'CLIENT_PROTOCOL_UNVERIFIED' });
+  assert.throws(() => normalizeProtocol('typo'), { code: 'INVALID_PROTOCOL' });
+  assert.throws(() => buildEntry('m', 'https://relay.invalid/v1', 'k', { protocol: 'auto' }), { code: 'PROTOCOL_UNVERIFIED' });
 });
 
 test('candidates 只返回规范化后的唯一 base', () => {
@@ -101,7 +113,8 @@ test('回归 2.0.1：HTML 200 不算可用；JSON 必须含 choices', () => {
   assert.equal(validateChatResponse('text/html; charset=utf-8', '<!doctype html>').ok, false);
   assert.equal(validateChatResponse('application/json', '{"id":"x"}').ok, false);
   assert.equal(validateChatResponse('application/json', 'not json').ok, false);
-  assert.equal(validateChatResponse('application/json; charset=utf-8', '{"choices":[]}').ok, true);
+  assert.equal(validateChatResponse('application/json; charset=utf-8', '{"choices":[]}').ok, false);
+  assert.equal(validateChatResponse('application/json', '{"choices":[{"message":{"content":"ok"}}]}').ok, true);
 });
 test('回归 2.0.1：过滤通配符模型 id', () => {
   assert.deepEqual(pickChatModels(['claude-*', 'codex-*', 'gpt-*', 'gpt-5.5', 'claude-sonnet-4']), ['gpt-5.5', 'claude-sonnet-4']);

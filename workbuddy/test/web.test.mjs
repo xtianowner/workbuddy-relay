@@ -20,7 +20,7 @@ test('网页异步导入：鉴权、进度、跨站保留、备份和日志脱�
     importOptions: { mergeTimeoutMs: 0 },
     fetchImpl: async (url, init) => {
       assert.ok(url.startsWith(PLATFORM_BASE));
-      assert.equal(init.headers.Authorization, `Bearer ${key}`);
+      assert.equal(new Headers(init.headers).get('authorization'), `Bearer ${key}`);
       if (url.endsWith('/models')) return Response.json({ data: [{ id: 'working' }, { id: 'other' }] });
       await gate;
       return Response.json({ choices: [{ message: { content: 'ok' } }] });

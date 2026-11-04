@@ -1,0 +1,47 @@
+[
+  {
+    "name": "ordinary IDs do not declare effort",
+    "model": { "id": "opaque-model" },
+    "expected": { "reasoning": null, "effortLevels": null, "defaultEffort": null, "defaultEnabled": null, "canDisable": null, "effortSelection": "unknown", "budget": null, "source": "unknown" }
+  },
+  {
+    "name": "Codex native levels",
+    "model": { "slug": "opaque-model", "supported_reasoning_levels": [{ "effort": "low" }, { "effort": "high" }], "default_reasoning_level": "high" },
+    "expected": { "reasoning": true, "effortLevels": ["low", "high"], "defaultEffort": "high", "defaultEnabled": null, "canDisable": null, "effortSelection": "declared", "budget": null, "source": "codex-manifest" }
+  },
+  {
+    "name": "OpenRouter declared efforts and mandatory reasoning",
+    "model": { "id": "opaque-model", "reasoning": { "supported_efforts": ["max", "high", "low"], "default_effort": "high", "default_enabled": true, "mandatory": true } },
+    "expected": { "reasoning": true, "effortLevels": ["max", "high", "low"], "defaultEffort": "high", "defaultEnabled": true, "canDisable": false, "effortSelection": "declared", "budget": null, "source": "openrouter" }
+  },
+  {
+    "name": "OpenRouter unrestricted is not an invented list",
+    "model": { "id": "opaque-model", "reasoning": { "supported_efforts": null, "default_effort": "medium" } },
+    "expected": { "reasoning": true, "effortLevels": null, "defaultEffort": "medium", "defaultEnabled": null, "canDisable": null, "effortSelection": "unrestricted", "budget": null, "source": "openrouter" }
+  },
+  {
+    "name": "OpenRouter no effort selector",
+    "model": { "id": "opaque-model", "reasoning": { "supports_max_tokens": true } },
+    "expected": { "reasoning": true, "effortLevels": null, "defaultEffort": null, "defaultEnabled": null, "canDisable": null, "effortSelection": "unavailable", "budget": {}, "source": "openrouter" }
+  },
+  {
+    "name": "explicit empty is not missing",
+    "model": { "id": "opaque-model", "reasoning": { "supported_efforts": [] } },
+    "expected": { "reasoning": true, "effortLevels": [], "defaultEffort": null, "defaultEnabled": null, "canDisable": null, "effortSelection": "declared", "budget": null, "source": "openrouter" }
+  },
+  {
+    "name": "models.dev toggle is not effort",
+    "model": { "id": "opaque-model", "reasoning": true, "reasoning_options": [{ "type": "toggle" }] },
+    "expected": { "reasoning": true, "effortLevels": null, "defaultEffort": null, "defaultEnabled": null, "canDisable": true, "effortSelection": "unavailable", "budget": null, "source": "models-dev" }
+  },
+  {
+    "name": "models.dev budget is not effort",
+    "model": { "id": "opaque-model", "reasoning": true, "reasoning_options": [{ "type": "budget_tokens", "min": 1024, "max": 8192 }] },
+    "expected": { "reasoning": true, "effortLevels": null, "defaultEffort": null, "defaultEnabled": null, "canDisable": null, "effortSelection": "unavailable", "budget": { "min": 1024, "max": 8192 }, "source": "models-dev" }
+  },
+  {
+    "name": "models.dev default omission is not thinking off",
+    "model": { "id": "opaque-model", "reasoning": true, "reasoning_options": [{ "type": "effort", "values": [null, "default", "low", "high"] }] },
+    "expected": { "reasoning": true, "effortLevels": ["low", "high"], "defaultEffort": null, "defaultEnabled": null, "canDisable": null, "effortSelection": "declared", "budget": null, "source": "models-dev" }
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "version": "2.5.1",
+  "platform": "windows",
+  "arch": "x64",
+  "file": "/Users/tian/Documents/00-Tian/00-Tian-Project/workbuddy-relay/dist/packaging-measurement/WorkBuddy-Relay-Import-windows-x64.exe",
+  "size": 37793280,
+  "sha256": "c07cbfa4f6d0bd2579adac3cf5729be1ee8533aec0e14f8691b92c7c1c1efd72",
+  "runtime": {
+    "size": 89935872,
+    "sha256": "2ffe3acc0458fdde999f50d11809bbe7c9b7ef204dcf17094e325d26ace101d8"
+  },
+  "application": {
+    "size": 74266,
+    "sha256": "79000879edb5a58e7524071b5c1af2ba06f3fef7f20c32842c74afa0b6aec033"
+  },
+  "runtimeCompressedBytes": 34465199,
+  "applicationCompressedBytes": 26411,
+  "offlineRuntimeIncluded": true,
+  "signed": false
+}

@@ -5,13 +5,21 @@ tags: [workbuddy, new-api, sub2api, local-tool]
 scenes: [dev]
 related: [brief-shared-001]
 summary: "WorkBuddy 中转站一键导入（纯本地 zip 工具）的工程说明"
-updated: 2026-11-03
+updated: 2026-11-04
 ---
 
 # AGENTS.md — workbuddy-relay（工程说明）
 
 ## 定位
 纯本地工具，不部署、不联网下载自身代码。普通网页入口固定使用 SmarAgents `https://www.smaragents.com/v1`，用户只填写 API Key；开发者参数模式仍兼容 `--url` 与平台令牌。用户解压 zip 后双击运行：填写 Key → 选择模型 → 写入 `~/.workbuddy/models.json` → 校验热加载。平台侧不需要做任何改造。
+
+## 2.5.3 候选约定
+
+思考能力只读取当前 Base URL 的 `/models` 声明，使用共享 `llm-protocol-router` reasoning parser `0.4.1-bridge.2`；内嵌二进制用该包 `dist/reasoning.js` 的逐字节快照（SHA256 `a59b4dde2315f112bd777c2b85298c6a944572722afab81dacb3b25081d602d0`）。未声明保持 unknown，不按模型名猜、不生成默认 low/medium/high，不发送无效值或逐档思考请求。基础连通性请求不携带 reasoning 参数。
+
+同步来源、包与 fixture 校验记录在 `workbuddy/lib/vendor/router-provenance.json`。共享协议检测内嵌 `llm-protocol-router/js/dist/protocol-discovery-standalone.mjs` 的逐字节快照（SHA256 `09e5d3867ce569c7517444b862d6c03d086902474f838fc378a9d3606068d6a6`）。
+
+协议字段保留 `auto`、`openai-chat`、`openai-responses`、`anthropic-messages`。WorkBuddy 自定义模型仅确认 Chat 原生配置；自动检测复用共享 router，并限制 `allowedTypes: [chat_completions]`。手动非 Chat 以 `CLIENT_PROTOCOL_UNVERIFIED` 拒绝，零网络、零写入。跳过检测的 auto 仅保留同模型、端点、Key 的既有 Chat 配置，否则 `PROTOCOL_UNVERIFIED`。`useCustomProtocol` 仅控制 URL 透传，不代表存在原生协议适配器。证据见 `docs/1104-workbuddy-native-protocol-evidence.json`。
 
 ## 2.4.0 约定
 
@@ -46,10 +54,9 @@ legacy/index.html        废弃：旧的「网页生成 curl|bash 命令 + 远�
 - 交互输入共用一个 readline 实例（`ask`），多实例会在非 TTY 下丢输入。
 - 平台接口事实与确认项见 DESIGN.md §3、§4。
 
-## 2.3.0 备注
+## 2.3.0 备注（历史实现，已由2.5.2替换）
 
-- 思考档位只用 WorkBuddy 对话框选择器能显示的 5 档 low/medium/high/xhigh/max（不含 minimal）。每个模型先发无效值（被接受=中转站忽略参数→保守写低/中/高），否则并发逐档试 5 档 + none；结果写进 supportedEfforts / canDisableThinking。
-- 不要信无效值报错里列出的取值：那是全局枚举，不是该模型支持的档位。
+- 旧版曾逐档探测；2.5.2起不再发送无效值或逐档请求。
 - 版本号批量替换时注意 windows-exe/package-lock.json 的误匹配（bare-url 等依赖版本）。
 
 ## 2.2.1 备注
